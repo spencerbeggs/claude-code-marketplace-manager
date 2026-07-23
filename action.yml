@@ -1,0 +1,20 @@
+name: GitHub Action Template
+description: Boilerplate repo for setting up a GitHub Marketplace action with @savvy-web/github-action-builder and @savvy-web/github-action-effect
+branding:
+  icon: package
+  color: blue
+inputs:
+  app-client-id:
+    description: GitHub App client ID for authentication
+    required: true
+  app-private-key:
+    description: GitHub App private key (PEM format)
+    required: true
+outputs:
+  demo-output:
+    description: Define your outputs here (e.g., 'demo-output' is just an example)
+runs:
+  using: node24
+  pre: dist/pre.js
+  main: dist/main.js
+  post: dist/post.js

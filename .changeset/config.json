@@ -1,0 +1,18 @@
+{
+	"$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
+	"changelog": [
+		"@savvy-web/changelog",
+		{
+			"repo": "savvy-web/github-action-template"
+		}
+	],
+	"commit": false,
+	"access": "restricted",
+	"baseBranch": "main",
+	"updateInternalDependencies": "patch",
+	"ignore": [],
+	"privatePackages": {
+		"tag": true,
+		"version": true
+	}
+}
