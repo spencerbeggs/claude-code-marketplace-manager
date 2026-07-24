@@ -1,9 +1,11 @@
 import { Jsonc } from "@effected/jsonc";
 import Ajv from "ajv";
-import { Effect } from "effect";
+import { Brand, Effect } from "effect";
 import { ManifestValidationError } from "../errors/errors.js";
 // biome-ignore lint/correctness/useImportExtensions: forceJsExtensions rewrites this already-correct `.json` extension to `.js`, which breaks resolution; this is a JSON asset import, not a relative TS/JS module import.
 import marketplaceSchema from "../schema/claude-code-marketplace.json" with { type: "json" };
+import type { ChangeRecord } from "../schema/marketplace.js";
+import type { ChangedEdit } from "./ManifestEditor.js";
 
 const SHA_RE = /^[0-9a-f]{40}$/;
 const GITHUB_URL_RE = /^https:\/\/github\.com\/[^/]+\/[^/]+(?:\.git)?\/?$/;
@@ -89,3 +91,35 @@ export const validateManifest = (
 			return yield* Effect.fail(new ManifestValidationError({ errors }));
 		}
 	});
+
+/**
+ * A manifest edit proven to both differ from the original and pass validation.
+ *
+ * Minted only by {@link validateEdit}, and required by
+ * `ManifestCommitter.land` — so "commit unvalidated or byte-stable text" is a
+ * compile error rather than an ordering discipline `program.ts` has to uphold.
+ * The non-no-op half of the proof comes from the `ChangedEdit` parameter, which
+ * callers can only obtain by narrowing past the no-op guard.
+ */
+export type ValidatedManifestChange = Brand.Branded<
+	{
+		readonly editedText: string;
+		readonly changes: ReadonlyArray<ChangeRecord>;
+	},
+	"ValidatedManifestChange"
+>;
+
+const ValidatedManifestChange = Brand.nominal<ValidatedManifestChange>();
+
+/**
+ * Validate a changed edit and, on success, mint the {@link ValidatedManifestChange}
+ * that `land` requires. The validation itself is {@link validateManifest} — this
+ * adds only the proof-carrying wrapper.
+ */
+export const validateEdit = (
+	edit: ChangedEdit,
+	patchedNames: ReadonlyArray<string>,
+): Effect.Effect<ValidatedManifestChange, ManifestValidationError> =>
+	Effect.map(validateManifest(edit.editedText, patchedNames), () =>
+		ValidatedManifestChange({ editedText: edit.editedText, changes: edit.changes }),
+	);

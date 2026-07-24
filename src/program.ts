@@ -7,7 +7,7 @@ import { toReportOutput } from "./schema/projections.js";
 import { ReportOutput } from "./schema/report-output.js";
 import { land, resolveBaseBranch } from "./services/ManifestCommitter.js";
 import { applyPatches, readManifest } from "./services/ManifestEditor.js";
-import { validateManifest } from "./services/ManifestValidator.js";
+import { validateEdit } from "./services/ManifestValidator.js";
 
 /** Emit the structured result (non-fatal), convenience scalars, and the job summary (non-fatal). */
 const emit = (outputs: typeof ActionOutputs.Service, output: ReportOutput) =>
@@ -69,9 +69,13 @@ const runOrchestration = (outputs: typeof ActionOutputs.Service, inputs: ParsedI
 			return;
 		}
 
-		// 5: validate the result before any commit.
-		yield* validateManifest(
-			edit.editedText,
+		// 5: validate the result before any commit. `edit` has narrowed to
+		// ChangedEdit at the guard above, and `validateEdit` mints the branded
+		// change that `land` requires — the two halves of the commit-time
+		// invariant, both enforced by the type checker rather than by this
+		// function's ordering.
+		const change = yield* validateEdit(
+			edit,
 			inputs.patches.map((p) => p.name),
 		);
 
@@ -106,7 +110,7 @@ const runOrchestration = (outputs: typeof ActionOutputs.Service, inputs: ParsedI
 			mode: inputs.mode,
 			base,
 			branch: inputs.branch,
-			editedText: edit.editedText,
+			change,
 			commitMessage,
 			prTitle,
 			prBody,

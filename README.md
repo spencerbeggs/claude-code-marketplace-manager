@@ -137,7 +137,7 @@ Provide changes in one of two mutually exclusive ways: the **manual** path (`nam
 | `json` | programmatic path | `""` | JSON object with a `plugins` array of per-plugin partial-merge patches, `{ "plugins": [{ "name": string, "url"?, "path"?, "sha"? }] }`. Each entry names an existing plugin and changes only the fields it provides. Validated against the committed [input schema](claude-code-marketplace-manager.input.json). |
 | `mode` | no | `commit` | `commit` (commit direct to the base branch) or `pr` (open a pull request). |
 | `base-branch` | no | repo default branch | Branch to commit to (`commit` mode) or the PR base (`pr` mode). |
-| `branch` | no | `chore/repin-plugins` | PR head branch (`pr` mode). |
+| `branch` | no | `chore/repin-plugins` | PR head branch (`pr` mode). Force-reset onto the base branch on every run — any commits an earlier run left on it are discarded. |
 | `commit-message` | no | generated | Commit message. Generated from the applied changes when unset. |
 | `pr-title` | no | generated | PR title (`pr` mode). Generated when unset. |
 | `pr-body` | no | generated | PR body (`pr` mode). Generated when unset. |
@@ -231,6 +231,8 @@ Open a pull request instead of committing to the base branch (auto-merge default
     app-client-id: ${{ secrets.APP_CLIENT_ID }}
     app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ```
+
+The head branch is reset onto the base branch at the start of every `pr`-mode run, so re-running against the same `branch` updates the existing pull request in place instead of stacking another commit on it. Each run leaves a single commit that diffs cleanly against the current base. Treat that branch as owned by the action: commits pushed to it by anything else are discarded on the next run.
 
 Open a pull request with a specific auto-merge method:
 

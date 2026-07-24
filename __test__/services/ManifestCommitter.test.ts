@@ -9,11 +9,40 @@ import {
 } from "@savvy-web/github-action-effects/testing";
 import { Effect, Layer } from "effect";
 import { land } from "../../src/services/ManifestCommitter.js";
+import { MANIFEST_PATH } from "../../src/services/ManifestEditor.js";
+import { validateEdit } from "../../src/services/ManifestValidator.js";
+
+const ORIGINAL = `{
+	"name": "acme",
+	"owner": { "name": "acme" },
+	"plugins": [
+		{ "name": "p1", "source": { "source": "git-subdir", "url": "https://github.com/acme/p1", "path": "plugin", "sha": "${"0".repeat(40)}" } }
+	]
+}
+`;
+const EDITED = ORIGINAL.replace("0".repeat(40), "1".repeat(40));
+
+// `land` accepts only a validator-minted ValidatedManifestChange, so the fixture
+// is minted through the real `validateEdit` rather than cast into place. A
+// fixture that stopped validating throws here instead of silently weakening
+// every test below.
+const change = Effect.runSync(
+	validateEdit(
+		{
+			original: ORIGINAL,
+			editedText: EDITED,
+			changed: true,
+			manifestName: "acme",
+			changes: [{ pluginName: "p1", manifestName: "acme", field: "sha", value: "1".repeat(40) }],
+		},
+		["p1"],
+	),
+);
 
 const params = {
 	base: "main",
 	branch: "chore/repin-plugins",
-	editedText: "{}\n",
+	change,
 	commitMessage: "ai(marketplace): repinned p@acme",
 	prTitle: "ai(marketplace): repinned p@acme",
 	prBody: "- pinned p@acme to abc",
@@ -38,6 +67,9 @@ describe("land", () => {
 				["main"],
 			);
 			assert.strictEqual(commit.commits[0]?.message, params.commitMessage);
+			// The validated change's text is what actually reaches the tree, at the
+			// manifest path — not the original, and not some other field.
+			assert.deepStrictEqual(commit.trees[0]?.entries, [{ path: MANIFEST_PATH, mode: "100644", content: EDITED }]);
 			assert.strictEqual(result.commitSha, commit.commits[0]?.sha);
 			assert.strictEqual(result.commitUrl, `https://github.com/test-owner/test-repo/commit/${result.commitSha}`);
 			assert.isNull(result.prNumber);
@@ -79,6 +111,66 @@ describe("land", () => {
 		}),
 	);
 
+	it.effect("pr mode resets an existing branch onto base before committing", () =>
+		Effect.gen(function* () {
+			const commit = GitCommitTest.empty();
+			const branch = GitBranchTest.empty();
+			// A long-lived head branch left over from an earlier run, now behind a
+			// base that has moved on — the drift that made spencerbeggs/bot#12
+			// unmergeable (issue #3).
+			branch.branches.set("main", "base-sha-2");
+			branch.branches.set("chore/repin-plugins", "drifted-sha");
+			const pr = PullRequestTest.empty();
+			const layer = Layer.mergeAll(
+				GitCommitTest.layer(commit),
+				GitBranchTest.layer(branch),
+				PullRequestTest.layer(pr),
+				GitHubClientTest.empty(),
+			);
+			const result = yield* land({ mode: "pr", ...params }).pipe(Effect.provide(layer));
+			// The stale tip is discarded: the branch is re-rooted at base's CURRENT
+			// sha rather than having a commit stacked onto `drifted-sha`.
+			assert.strictEqual(branch.branches.get("chore/repin-plugins"), "base-sha-2");
+			// Still exactly one commit, still to the head branch.
+			assert.lengthOf(commit.commits, 1);
+			assert.deepStrictEqual(
+				commit.refUpdates.map((r) => r.ref),
+				["chore/repin-plugins"],
+			);
+			assert.isNotNull(result.prNumber);
+			assert.lengthOf(pr.prs, 1);
+		}),
+	);
+
+	it.effect("re-landing against the same PR re-roots the branch at the current base", () =>
+		Effect.gen(function* () {
+			const commit = GitCommitTest.empty();
+			const branch = GitBranchTest.empty();
+			branch.branches.set("main", "base-sha-1");
+			const pr = PullRequestTest.empty();
+			const layer = Layer.mergeAll(
+				GitCommitTest.layer(commit),
+				GitBranchTest.layer(branch),
+				PullRequestTest.layer(pr),
+				GitHubClientTest.empty(),
+			);
+
+			yield* land({ mode: "pr", ...params }).pipe(Effect.provide(layer));
+			assert.strictEqual(branch.branches.get("chore/repin-plugins"), "base-sha-1");
+
+			// Base moves on (another PR merged), then the action runs again against
+			// the same fixed branch name. The second run must follow base rather
+			// than append to the first run's commit.
+			branch.branches.set("main", "base-sha-2");
+			yield* land({ mode: "pr", ...params }).pipe(Effect.provide(layer));
+			assert.strictEqual(branch.branches.get("chore/repin-plugins"), "base-sha-2");
+			// One commit per run — but each rooted at base, not stacked.
+			assert.lengthOf(commit.commits, 2);
+			// And still a single PR for the head→base pair.
+			assert.lengthOf(pr.prs, 1);
+		}),
+	);
+
 	it.effect("passes the requested auto-merge method through to an existing PR too", () =>
 		Effect.gen(function* () {
 			const commit = GitCommitTest.empty();
@@ -113,6 +205,7 @@ describe("land", () => {
 			// existed, and the re-check inside `land`'s recovery path must see it
 			// now present and proceed rather than propagating the error.
 			let concurrentlyCreated = false;
+			const resets: Array<{ name: string; sha: string }> = [];
 			const racyBranch: typeof GitBranch.Service = {
 				create: (name) =>
 					Effect.sync(() => {
@@ -127,7 +220,10 @@ describe("land", () => {
 				exists: (name) => Effect.succeed(name === params.base || concurrentlyCreated),
 				getSha: () => Effect.succeed("base-sha"),
 				delete: () => Effect.void,
-				reset: () => Effect.void,
+				reset: (name, sha) =>
+					Effect.sync(() => {
+						resets.push({ name, sha });
+					}),
 			};
 
 			const layer = Layer.mergeAll(
@@ -138,6 +234,10 @@ describe("land", () => {
 			);
 			const result = yield* land({ mode: "pr", ...params }).pipe(Effect.provide(layer));
 			assert.isTrue(concurrentlyCreated);
+			// The recovery path doesn't just proceed on the winner's branch — it
+			// re-roots it at base, so a concurrent creator that rooted the branch
+			// somewhere else is corrected rather than inherited.
+			assert.deepStrictEqual(resets, [{ name: params.branch, sha: "base-sha" }]);
 			assert.isNotNull(result.prNumber);
 			assert.lengthOf(pr.prs, 1);
 		}),
@@ -171,4 +271,27 @@ describe("land", () => {
 			assert.lengthOf(pr.prs, 0);
 		}),
 	);
+});
+
+describe("land type boundary", () => {
+	it("rejects unvalidated and byte-stable input at compile time", () => {
+		// This closure is never invoked: the assertions ARE the @ts-expect-error
+		// directives, checked by `tsc --noEmit` (pnpm typecheck, and the
+		// pre-commit hook, both of which include __test__). If `land` or
+		// `validateEdit` ever accepted these shapes again, the directives become
+		// unused and typecheck fails. That compile-time rejection is the whole
+		// point of issue #2 — a runtime test cannot express it.
+		const rejected = () => {
+			// @ts-expect-error raw manifest text is not proof of validation
+			void land({ mode: "commit", ...params, change: EDITED });
+			// @ts-expect-error an unbranded { editedText, changes } is not proof either
+			void land({ mode: "commit", ...params, change: { editedText: EDITED, changes: [] } });
+			void validateEdit(
+				// @ts-expect-error a byte-stable NoopEdit can never be certified
+				{ original: ORIGINAL, editedText: ORIGINAL, changed: false, manifestName: "acme", changes: [] },
+				["p1"],
+			);
+		};
+		assert.isFunction(rejected);
+	});
 });

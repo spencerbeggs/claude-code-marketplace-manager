@@ -3,9 +3,9 @@ status: current
 module: marketplace-manager
 category: validation
 created: 2026-07-23
-updated: 2026-07-23
-last-synced: 2026-07-23
-completeness: 90
+updated: 2026-07-24
+last-synced: 2026-07-24
+completeness: 92
 related:
   - ./architecture.md
   - ./input-output-contracts.md
@@ -23,6 +23,27 @@ action fails with `ManifestValidationError` (carrying **all** reasons) and leave
 the file untouched — an invalid manifest is never committed. Validation runs in
 `program.ts` step 5, after the no-op guard and before the dry-run guard, so even
 `dry-run` exercises full validation.
+
+### The invariant is type-enforced, not merely ordered
+
+Both halves — *validated* and *non-no-op* — are compile-time requirements of
+`ManifestCommitter.land`, not properties that `runOrchestration`'s statement
+order happens to produce:
+
+- **Non-no-op:** `EditResult` is a union of `NoopEdit` (`changed: false`,
+  `changes: readonly []`) and `ChangedEdit` (`changed: true`). Narrowing past the
+  no-op guard is the only way to obtain a `ChangedEdit`, and `validateEdit`
+  accepts nothing else. This also makes `changes` structurally consistent with
+  `changed`, replacing a runtime consistency check in `applyPatches`.
+- **Validated:** `validateEdit(edit, patchedNames)` runs `validateManifest` and,
+  on success, mints a branded `ValidatedManifestChange`
+  (`Brand.Branded<…, "ValidatedManifestChange">`). `land` requires that type
+  rather than a plain `string`, so committing unvalidated or byte-stable text is
+  a compile error.
+
+`validateManifest(editedText, patchedNames)` remains the exported, unbranded
+check; `validateEdit` is the proof-carrying wrapper around it. A deliberate cast
+can still forge a branded value — out of scope, as with any cast.
 
 ## Two layers of checks (`services/ManifestValidator.ts`)
 

@@ -33,7 +33,7 @@ Claude Code plugin marketplace-manifest editor built on Effect v4 and
 - **What it does:** partial-merge edits `git-subdir` plugin entries in
   `.claude-plugin/marketplace.json`, validates the result, and lands it as a
   verified commit (direct-to-base) or a PR.
-- **Stack:** Effect `4.0.0-beta.99`, `@savvy-web/github-action-effects`,
+- **Stack:** Effect `4.0.0-beta.101`, `@savvy-web/github-action-effects`,
   `@effected/jsonc`, `ajv`; bundled to `dist/` by
   `@savvy-web/github-action-builder`.
 - **Precision by design:** explicit values only — no release/ref→sha resolution.
