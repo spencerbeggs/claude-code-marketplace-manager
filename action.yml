@@ -1,4 +1,4 @@
-name: Claude CodeMarketplace Manager
+name: Claude Code Marketplace Manager
 description: Automatically repin Claude Code plugins to new commit SHAs
 author: C. Spencer Beggs
 branding:

@@ -1,8 +1,6 @@
 # Claude Code Marketplace Manager
 
-[![GitHub release](https://img.shields.io/github/v/release/spencerbeggs/claude-code-marketplace-manager?label=release&color=2088ff)](https://github.com/spencerbeggs/claude-code-marketplace-manager/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-4caf50.svg)](https://opensource.org/licenses/MIT)
-[![Node.js %3E%3D24.11.0](https://img.shields.io/badge/Node.js-%3E%3D24.11.0-5fa04e.svg)](https://nodejs.org/)
+[![GitHub release](https://img.shields.io/github/v/release/spencerbeggs/claude-code-marketplace-manager?label=release&color=2088ff)](https://github.com/spencerbeggs/claude-code-marketplace-manager/releases) [![License: MIT](https://img.shields.io/badge/License-MIT-4caf50.svg)](https://opensource.org/licenses/MIT) [![Node.js %3E%3D24.11.0](https://img.shields.io/badge/Node.js-%3E%3D24.11.0-5fa04e.svg)](https://nodejs.org/)
 
 A GitHub Action that partial-merge edits `git-subdir` plugin entries in a Claude Code marketplace manifest (`.claude-plugin/marketplace.json`), validates the result, and lands the change as a verified commit or a pull request.
 
