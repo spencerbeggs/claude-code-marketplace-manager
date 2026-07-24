@@ -1,0 +1,144 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"$id": "https://raw.githubusercontent.com/spencerbeggs/claude-code-marketplace-manager/main/claude-code-marketplace-manager.output.json",
+	"$ref": "#/$defs/MarketplaceManagerResult",
+	"$defs": {
+		"ChangedPlugin": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"fields": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"enum": ["url", "path", "sha"]
+					}
+				}
+			},
+			"required": ["name", "fields"],
+			"additionalProperties": false
+		},
+		"CommitInfo": {
+			"type": "object",
+			"properties": {
+				"sha": {
+					"type": "string"
+				},
+				"url": {
+					"anyOf": [
+						{
+							"type": "string"
+						},
+						{
+							"type": "null"
+						}
+					]
+				}
+			},
+			"required": ["sha", "url"],
+			"additionalProperties": false
+		},
+		"PrInfo": {
+			"type": "object",
+			"properties": {
+				"number": {
+					"type": "integer"
+				},
+				"url": {
+					"anyOf": [
+						{
+							"type": "string"
+						},
+						{
+							"type": "null"
+						}
+					]
+				}
+			},
+			"required": ["number", "url"],
+			"additionalProperties": false
+		},
+		"MarketplaceManagerResult": {
+			"type": "object",
+			"properties": {
+				"$schema": {
+					"type": "string",
+					"enum": [
+						"https://raw.githubusercontent.com/spencerbeggs/claude-code-marketplace-manager/main/claude-code-marketplace-manager.output.json"
+					]
+				},
+				"schemaVersion": {
+					"type": "string",
+					"enum": ["1"]
+				},
+				"mode": {
+					"type": "string",
+					"enum": ["commit", "pr"]
+				},
+				"status": {
+					"type": "string",
+					"enum": ["no-op", "success", "failed"]
+				},
+				"noop": {
+					"type": "boolean"
+				},
+				"succeeded": {
+					"type": "boolean"
+				},
+				"hasFailures": {
+					"type": "boolean"
+				},
+				"dryRun": {
+					"type": "boolean"
+				},
+				"pluginsUpdated": {
+					"type": "integer"
+				},
+				"plugins": {
+					"type": "array",
+					"items": {
+						"$ref": "#/$defs/ChangedPlugin"
+					}
+				},
+				"commit": {
+					"anyOf": [
+						{
+							"$ref": "#/$defs/CommitInfo"
+						},
+						{
+							"type": "null"
+						}
+					]
+				},
+				"pr": {
+					"anyOf": [
+						{
+							"$ref": "#/$defs/PrInfo"
+						},
+						{
+							"type": "null"
+						}
+					]
+				}
+			},
+			"required": [
+				"$schema",
+				"schemaVersion",
+				"mode",
+				"status",
+				"noop",
+				"succeeded",
+				"hasFailures",
+				"dryRun",
+				"pluginsUpdated",
+				"plugins",
+				"commit",
+				"pr"
+			],
+			"additionalProperties": false,
+			"description": "Result of a marketplace-manager run. `noop` true ⇒ nothing changed and no commit/PR. `succeeded` true with `noop` false ⇒ the edit landed (or, in dry-run, would have). `status` is derived: no-op ⇒ 'no-op', else succeeded ⇒ 'success', else 'failed'."
+		}
+	}
+}

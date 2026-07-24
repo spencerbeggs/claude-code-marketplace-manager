@@ -8,7 +8,7 @@
 
 ## Reporting a Vulnerability
 
-To report a security vulnerability, please email [security@savvyweb.systems](mailto:security@savvyweb.systems).
+To report a security vulnerability, please email [spencer@beggs.codes](mailto:spencer@beggs.codes).
 
 Please include:
 
@@ -19,4 +19,4 @@ Please include:
 
 We will acknowledge receipt within 72 hours and provide updates as we investigate. We appreciate responsible disclosure and will credit reporters in release notes unless anonymity is requested.
 
-You can also report vulnerabilities through [GitHub Security Advisories](https://github.com/savvy-web/silk-release-action/security/advisories/new).
+You can also report vulnerabilities through [GitHub Security Advisories](https://github.com/spencerbeggs/claude-code-marketplace-manager/security/advisories/new).

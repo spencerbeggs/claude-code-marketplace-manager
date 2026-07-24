@@ -1,25 +1,26 @@
 {
-	"name": "@savvy-web/github-action-template",
+	"name": "claude-code-marketplace-manager",
 	"version": "0.0.0",
 	"private": true,
-	"description": "Boilerplate repo for setting up a GitHub Marketplace action with @savvy-web/github-action-builder and @savvy-web/github-action-effect.",
-	"homepage": "https://github.com/savvy-web/github-action-template#readme",
+	"description": "GitHub Action that re-pins git-subdir plugin sources in a Claude Code marketplace manifest as verified commits or pull requests.",
+	"keywords": ["github-action", "claude-code", "claude-code-plugin", "marketplace-manifest"],
+	"homepage": "https://github.com/spencerbeggs/claude-code-marketplace-manager#readme",
 	"bugs": {
-		"url": "https://github.com/savvy-web/github-action-template/issues"
+		"url": "https://github.com/spencerbeggs/claude-code-marketplace-manager/issues"
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/savvy-web/github-action-template.git"
+		"url": "git+https://github.com/spencerbeggs/claude-code-marketplace-manager.git"
 	},
 	"license": "MIT",
-	"author": "Savvy Web Systems <spencer@savvyweb.systems> (https://savvyweb.systems)",
+	"author": "C. Spencer Beggs <spencer@beggs.codes>",
 	"type": "module",
 	"scripts": {
 		"build": "turbo run build:prod --log-order=grouped",
 		"build:prod": "github-action-builder build",
 		"ci:build": "CI=\"true\" turbo run build:prod --log-order=grouped --output-logs=full",
 		"ci:test": "CI=\"true\" vitest run --coverage",
-		"generate:schema": "tsx lib/scripts/generate-schema.ts && biome format --write silk.config.schema.json",
+		"generate-schema": "tsx lib/scripts/generate-schema.ts",
 		"lint": "biome check --max-diagnostics=none",
 		"lint:fix": "biome check --write --max-diagnostics=none",
 		"lint:fix:unsafe": "biome check --write --unsafe --max-diagnostics=none",
@@ -35,10 +36,12 @@
 	},
 	"dependencies": {
 		"@effect/platform-node": "catalog:effect",
+		"@effected/jsonc": "~0.5.0",
 		"@savvy-web/github-action-effects": "^3.0.4",
 		"effect": "catalog:effect"
 	},
 	"devDependencies": {
+		"@effect/vitest": "catalog:effect",
 		"@savvy-web/github-action-builder": "^2.0.4",
 		"@savvy-web/silk": "^3.2.0",
 		"@vitest-agent/plugin": "^2.0.6",

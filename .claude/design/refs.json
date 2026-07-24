@@ -1,0 +1,35 @@
+{
+	"version": 1,
+	"refs": [
+		{
+			"source": "CLAUDE.md",
+			"target": ".claude/design/marketplace-manager/README.md",
+			"hash": "cd59f70cfa0912afdbe30c2d5114762a97d2f18a396a61f3420729e0081e3874",
+			"recordedAt": "2026-07-23"
+		},
+		{
+			"source": "CLAUDE.md",
+			"target": ".claude/design/marketplace-manager/architecture.md",
+			"hash": "082e4c3e8667681200908bde44e8ef2fbf0ec0790f88085ae6b2871aabbae376",
+			"recordedAt": "2026-07-24"
+		},
+		{
+			"source": "CLAUDE.md",
+			"target": ".claude/design/marketplace-manager/input-output-contracts.md",
+			"hash": "69f21ca8b107eef52f07110e326c07a1761f4016fb977d5bbf3843293f705705",
+			"recordedAt": "2026-07-24"
+		},
+		{
+			"source": "CLAUDE.md",
+			"target": ".claude/design/marketplace-manager/validation.md",
+			"hash": "35d3f750f60531d410ccec728a693e61aa997074edf168766f58271c8a229dec",
+			"recordedAt": "2026-07-23"
+		},
+		{
+			"source": "CLAUDE.md",
+			"target": ".claude/design/marketplace-manager/verified-commits.md",
+			"hash": "96a02c2a5c2a91ed87c2ecdc71c27d09080485e041351ac83f7bcb9d1612bd52",
+			"recordedAt": "2026-07-23"
+		}
+	]
+}
