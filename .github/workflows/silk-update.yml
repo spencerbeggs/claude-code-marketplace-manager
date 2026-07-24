@@ -42,7 +42,7 @@ jobs:
           branch: ${{ inputs.branch || 'pnpm/config-deps' }}
           dry-run: ${{ inputs.dry-run || false }}
           auto-merge: "squash"
-          changesets: false
+          changesets: true
           upgrade-package-manager: "^11.0.0"
           upgrade-runtime-node: "^26.0.0"
           config-dependencies: |
