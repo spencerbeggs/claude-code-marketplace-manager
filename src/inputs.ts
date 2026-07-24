@@ -73,14 +73,23 @@ export const parseInputs: Effect.Effect<ParsedInputs, InvalidInputError | Config
 					new InvalidInputError({ field: "url/path/sha", reason: "provide at least one field to change" }),
 				);
 			}
-			patches = [
-				{
-					name,
-					...(url.length > 0 ? { url } : {}),
-					...(path.length > 0 ? { path } : {}),
-					...(sha.length > 0 ? { sha } : {}),
-				},
-			];
+			// Decode through the same schema as the json path so both forms get
+			// identical validation (e.g. the sha 40-hex pattern) and error shape.
+			const decoded = yield* decodeJsonInput({
+				plugins: [
+					{
+						name,
+						...(url.length > 0 ? { url } : {}),
+						...(path.length > 0 ? { path } : {}),
+						...(sha.length > 0 ? { sha } : {}),
+					},
+				],
+			}).pipe(
+				Effect.mapError(
+					() => new InvalidInputError({ field: "name/url/path/sha", reason: "invalid manual plugin patch" }),
+				),
+			);
+			patches = decoded.plugins;
 		}
 
 		const modeRaw = yield* Cfg.string("mode").pipe(Cfg.withDefault("commit"));

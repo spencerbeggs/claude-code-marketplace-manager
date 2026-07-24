@@ -3,7 +3,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { NodeFileSystem } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
-import type { ActionOutputsTestState } from "@savvy-web/github-action-effects/testing";
+import type {
+	ActionOutputsTestState,
+	GitBranchTestState,
+	GitCommitTestState,
+	PullRequestTestState,
+} from "@savvy-web/github-action-effects/testing";
 import {
 	ActionEnvironmentTest,
 	ActionLoggerTest,
@@ -36,16 +41,38 @@ const setup = () => {
 	return dir;
 };
 
-/** Run `program` against fixture inputs/cwd, restoring cwd once the effect completes (success or failure). */
-const withProgram = (inputs: Record<string, string>, outputs: ActionOutputsTestState, dir: string) => {
+/** The commit/branch/PR test state a run exercised — used to assert no landing activity occurred. */
+interface LandingState {
+	readonly commit: GitCommitTestState;
+	readonly branch: GitBranchTestState;
+	readonly pr: PullRequestTestState;
+}
+
+const emptyLandingState = (): LandingState => ({
+	commit: GitCommitTest.empty(),
+	branch: GitBranchTest.empty(),
+	pr: PullRequestTest.empty(),
+});
+
+/**
+ * Run `program` against fixture inputs/cwd, restoring cwd once the effect
+ * completes (success or failure). Accepts the commit/branch/PR test state so
+ * callers can assert on landing activity (or its absence) afterward.
+ */
+const withProgram = (
+	inputs: Record<string, string>,
+	outputs: ActionOutputsTestState,
+	dir: string,
+	landing: LandingState = emptyLandingState(),
+) => {
 	const layer = Layer.mergeAll(
 		ActionLoggerTest.layer(ActionLoggerTest.empty()),
 		ActionOutputsTest.layer(outputs),
 		ActionEnvironmentTest.empty(), // returns a Layer directly (ActionEnvironmentTest.ts:137)
 		ActionStateTest.layer(ActionStateTest.empty()),
-		GitCommitTest.layer(GitCommitTest.empty()),
-		GitBranchTest.layer(GitBranchTest.empty()),
-		PullRequestTest.layer(PullRequestTest.empty()),
+		GitCommitTest.layer(landing.commit),
+		GitBranchTest.layer(landing.branch),
+		PullRequestTest.layer(landing.pr),
 		// `program`'s R type includes GitHubClient (resolveBaseBranch is called
 		// unconditionally in the function body, even though these two tests never
 		// reach it at runtime because base-branch is always supplied). Provide the
@@ -70,11 +97,22 @@ describe("program", () => {
 		Effect.gen(function* () {
 			const outputs = ActionOutputsTest.empty();
 			const dir = setup();
-			yield* withProgram({ name: "p1", sha: "1".repeat(40), "dry-run": "true", "base-branch": "main" }, outputs, dir);
+			const landing = emptyLandingState();
+			yield* withProgram(
+				{ name: "p1", sha: "1".repeat(40), "dry-run": "true", "base-branch": "main" },
+				outputs,
+				dir,
+				landing,
+			);
 			const status = outputs.outputs.find((o) => o.name === "status");
 			assert.strictEqual(status?.value, "success");
 			assert.strictEqual(outputs.outputs.find((o) => o.name === "changed")?.value, "true");
 			assert.isTrue(outputs.outputs.some((o) => o.name === "result"));
+			// dry-run must never land: no commits, no ref updates, no branches, no PRs.
+			assert.lengthOf(landing.commit.commits, 0);
+			assert.lengthOf(landing.commit.refUpdates, 0);
+			assert.strictEqual(landing.branch.branches.size, 0);
+			assert.lengthOf(landing.pr.prs, 0);
 		}),
 	);
 
@@ -82,9 +120,16 @@ describe("program", () => {
 		Effect.gen(function* () {
 			const outputs = ActionOutputsTest.empty();
 			const dir = setup();
-			yield* withProgram({ name: "p1", sha: "0".repeat(40), "base-branch": "main" }, outputs, dir);
+			const landing = emptyLandingState();
+			yield* withProgram({ name: "p1", sha: "0".repeat(40), "base-branch": "main" }, outputs, dir, landing);
 			assert.strictEqual(outputs.outputs.find((o) => o.name === "status")?.value, "no-op");
 			assert.strictEqual(outputs.outputs.find((o) => o.name === "changed")?.value, "false");
+			// no-op must skip validation and landing entirely: no commits, no ref
+			// updates, no branches, no PRs.
+			assert.lengthOf(landing.commit.commits, 0);
+			assert.lengthOf(landing.commit.refUpdates, 0);
+			assert.strictEqual(landing.branch.branches.size, 0);
+			assert.lengthOf(landing.pr.prs, 0);
 		}),
 	);
 

@@ -8,11 +8,16 @@ export const INPUT_SCHEMA_URL =
  * A single per-plugin partial-merge patch: names an existing plugin and changes
  * only the fields present.
  */
+/** Lowercase 40-hex commit SHA, matching `ManifestValidator`'s `SHA_RE`. */
+const SHA_PATTERN = /^[0-9a-f]{40}$/;
+
 export const PluginPatch = Schema.Struct({
 	name: Schema.String.annotate({ description: "Name of an existing plugin to update." }),
 	url: Schema.optionalKey(Schema.String).annotate({ description: "New source.url." }),
 	path: Schema.optionalKey(Schema.String).annotate({ description: "New source.path." }),
-	sha: Schema.optionalKey(Schema.String).annotate({ description: "New source.sha (40-hex)." }),
+	sha: Schema.optionalKey(Schema.String.check(Schema.isPattern(SHA_PATTERN))).annotate({
+		description: "New source.sha (40-hex lowercase commit).",
+	}),
 }).annotate({ identifier: "PluginPatch" });
 
 /** Decoded patch type. */

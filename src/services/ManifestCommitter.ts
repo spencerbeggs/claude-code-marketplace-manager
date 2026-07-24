@@ -77,7 +77,19 @@ export const land = (
 		const branchExists = yield* branch.exists(params.branch);
 		if (!branchExists) {
 			const baseSha = yield* branch.getSha(params.base);
-			yield* branch.create(params.branch, baseSha);
+			// TOCTOU: another concurrent run can create this branch between the
+			// `exists` check above and this `create` call. The library's
+			// GitBranchError carries no structured "already exists" discriminant
+			// (just a free-form `reason` string), so re-checking existence after a
+			// failure — rather than string-matching the message — is the robust
+			// way to tell "someone else already created it" from a real failure.
+			yield* branch
+				.create(params.branch, baseSha)
+				.pipe(
+					Effect.catchTag("GitBranchError", (error) =>
+						Effect.flatMap(branch.exists(params.branch), (existsNow) => (existsNow ? Effect.void : Effect.fail(error))),
+					),
+				);
 		}
 
 		const sha = yield* commit.commitFiles(params.branch, params.commitMessage, files);

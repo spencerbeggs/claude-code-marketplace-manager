@@ -76,7 +76,12 @@ export const applyPatches = (
 			}
 		}
 
-		return { original: text, editedText: currentText, changed: currentText !== text, manifestName, changes };
+		// Defense in depth: keep `changes` self-consistent with `changed` even
+		// though the sole caller (program.ts) already gates on `changed` before
+		// ever reading `changes` for a byte-stable no-op — a byte-stable result
+		// should never carry transient per-write records that net out to nothing.
+		const changed = currentText !== text;
+		return { original: text, editedText: currentText, changed, manifestName, changes: changed ? changes : [] };
 	});
 
 /**

@@ -20,7 +20,9 @@ concurrency:
 jobs:
   workflow:
     name: Workflow
-    uses: spencerbeggs/.github/.github/workflows/release.yml@main
+    # Pinned to a commit SHA (zizmor unpinned-uses) rather than the mutable
+    # @main ref — bump deliberately when spencerbeggs/.github changes.
+    uses: spencerbeggs/.github/.github/workflows/release.yml@c7bfce7146b9eda8a90df6c63c8a21b555ad6c42
     permissions:
       contents: write
       pull-requests: write
@@ -34,4 +36,12 @@ jobs:
       app-bot-id: ${{ vars.APP_BOT_ID }}
       app-bot-name: ${{ vars.APP_BOT_NAME }}
       skip-claude-review: false
-    secrets: inherit
+    # Explicit secrets (zizmor secrets-inherit) — only what the reusable
+    # workflow's `secrets:` block declares, by name.
+    secrets:
+      APP_ID: ${{ secrets.APP_ID }}
+      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      CLAUDE_REVIEW_PAT: ${{ secrets.CLAUDE_REVIEW_PAT }}
+      CUSTOM_REGISTRIES: ${{ secrets.CUSTOM_REGISTRIES }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

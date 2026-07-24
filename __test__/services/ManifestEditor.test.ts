@@ -52,10 +52,9 @@ describe("applyPatches", () => {
 			assert.notInclude(result.editedText, "1".repeat(40));
 			assert.strictEqual(result.editedText, MANIFEST);
 			assert.isFalse(result.changed);
-			assert.deepStrictEqual(result.changes, [
-				{ pluginName: "p1", manifestName: "acme", field: "sha", value: "1".repeat(40) },
-				{ pluginName: "p1", manifestName: "acme", field: "sha", value: "0".repeat(40) },
-			]);
+			// changes is self-consistent with changed: a byte-stable result never
+			// carries the transient intermediate writes that netted out to nothing.
+			assert.deepStrictEqual(result.changes, []);
 		}),
 	);
 

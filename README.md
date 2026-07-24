@@ -33,8 +33,12 @@ on:
                 description: The path to the plugin root in the repository
                 required: false
                 type: string
+            url:
+                description: Source repository URL for the plugin
+                required: false
+                type: string
             json:
-                description: JSON string of the plugin's marketplace.json file
+                description: JSON object with a plugins array of per-plugin partial-merge patches
                 required: false
                 type: string
     repository_dispatch:
@@ -62,6 +66,7 @@ jobs:
                   name: ${{ github.event_name == 'workflow_dispatch' && inputs.name || github.event.client_payload.name }}
                   sha: ${{ github.event_name == 'workflow_dispatch' && inputs.sha || github.event.client_payload.sha }}
                   path: ${{ github.event_name == 'workflow_dispatch' && inputs.path || github.event.client_payload.path }}
+                  url: ${{ github.event_name == 'workflow_dispatch' && inputs.url || github.event.client_payload.url }}
                   json: ${{ github.event_name == 'workflow_dispatch' && inputs.json || github.event.client_payload.json }}
                   mode: "pr"
                   auto-merge: "rebase"

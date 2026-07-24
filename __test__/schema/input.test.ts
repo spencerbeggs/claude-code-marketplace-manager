@@ -7,12 +7,12 @@ describe("json input schema", () => {
 		Effect.gen(function* () {
 			const parsed = yield* decodeJsonInput({
 				plugins: [
-					{ name: "a", sha: "s" },
+					{ name: "a", sha: "1".repeat(40) },
 					{ name: "b", path: "p", url: "u" },
 				],
 			});
 			assert.deepStrictEqual(parsed.plugins, [
-				{ name: "a", sha: "s" },
+				{ name: "a", sha: "1".repeat(40) },
 				{ name: "b", path: "p", url: "u" },
 			]);
 			const [first] = parsed.plugins;
@@ -23,13 +23,19 @@ describe("json input schema", () => {
 
 	it.effect("rejects a bare array (no plugins envelope)", () =>
 		Effect.gen(function* () {
-			yield* Effect.flip(decodeJsonInput([{ name: "a", sha: "s" }]));
+			yield* Effect.flip(decodeJsonInput([{ name: "a", sha: "1".repeat(40) }]));
 		}),
 	);
 
 	it.effect("rejects an object missing plugins", () =>
 		Effect.gen(function* () {
 			yield* Effect.flip(decodeJsonInput({ name: "a" }));
+		}),
+	);
+
+	it.effect("rejects a sha that is not 40-hex lowercase", () =>
+		Effect.gen(function* () {
+			yield* Effect.flip(decodeJsonInput({ plugins: [{ name: "a", sha: "not-a-sha" }] }));
 		}),
 	);
 });
