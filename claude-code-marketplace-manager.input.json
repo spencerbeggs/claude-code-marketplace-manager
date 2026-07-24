@@ -1,0 +1,49 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"$id": "https://raw.githubusercontent.com/spencerbeggs/claude-code-marketplace-manager/main/claude-code-marketplace-manager.input.json",
+	"$ref": "#/$defs/MarketplacePatchInput",
+	"$defs": {
+		"PluginPatch": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string",
+					"description": "Name of an existing plugin to update."
+				},
+				"url": {
+					"type": "string",
+					"description": "New source.url."
+				},
+				"path": {
+					"type": "string",
+					"description": "New source.path."
+				},
+				"sha": {
+					"type": "string",
+					"allOf": [
+						{
+							"pattern": "^[0-9a-f]{40}$",
+							"description": "New source.sha (40-hex lowercase commit)."
+						}
+					]
+				}
+			},
+			"required": ["name"],
+			"additionalProperties": false
+		},
+		"MarketplacePatchInput": {
+			"type": "object",
+			"properties": {
+				"plugins": {
+					"type": "array",
+					"description": "Per-plugin partial-merge patches.",
+					"items": {
+						"$ref": "#/$defs/PluginPatch"
+					}
+				}
+			},
+			"required": ["plugins"],
+			"additionalProperties": false
+		}
+	}
+}

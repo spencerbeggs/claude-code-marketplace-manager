@@ -1,20 +1,100 @@
-name: GitHub Action Template
-description: Boilerplate repo for setting up a GitHub Marketplace action with @savvy-web/github-action-builder and @savvy-web/github-action-effect
+name: Marketplace Manager
+description: >-
+  Partial-merge edits git-subdir plugin entries in .claude-plugin/marketplace.json,
+  validates the result, and lands it as a verified commit or pull request.
+author: C. Spencer Beggs
 branding:
   icon: package
   color: blue
-inputs:
-  app-client-id:
-    description: GitHub App client ID for authentication
-    required: true
-  app-private-key:
-    description: GitHub App private key (PEM format)
-    required: true
-outputs:
-  demo-output:
-    description: Define your outputs here (e.g., 'demo-output' is just an example)
 runs:
   using: node24
   pre: dist/pre.js
   main: dist/main.js
   post: dist/post.js
+inputs:
+  name:
+    description: "Plugin name to update (manual path). Requires at least one of url/path/sha."
+    required: false
+    default: ""
+  url:
+    description: "New source.url for the named plugin (manual path)."
+    required: false
+    default: ""
+  path:
+    description: "New source.path for the named plugin (manual path)."
+    required: false
+    default: ""
+  sha:
+    description: "New source.sha (40-hex commit) for the named plugin (manual path)."
+    required: false
+    default: ""
+  json:
+    description: |
+      Programmatic path: a JSON object with a "plugins" array of per-plugin
+      partial-merge patches. Each entry names an existing plugin and changes
+      only the provided fields.
+      Example: '{"plugins":[{"name":"vitest-agent","sha":"8cba76025762cfa1dca24e6daafe2e3dc7c14924"}]}'
+    required: false
+    default: ""
+  mode:
+    description: "commit (direct to base branch) or pr."
+    required: false
+    default: "commit"
+  base-branch:
+    description: "Branch to commit to (commit mode) or PR base. Defaults to the repo default branch."
+    required: false
+    default: ""
+  branch:
+    description: "PR head branch (pr mode)."
+    required: false
+    default: "chore/repin-plugins"
+  commit-message:
+    description: "Commit message. Generated from the applied changes when unset."
+    required: false
+    default: ""
+  pr-title:
+    description: "PR title (pr mode). Generated when unset."
+    required: false
+    default: ""
+  pr-body:
+    description: "PR body (pr mode). Generated when unset."
+    required: false
+    default: ""
+  auto-merge:
+    description: >-
+      Merge method to enable auto-merge with on the opened/updated PR: "merge",
+      "squash", or "rebase". Only applies in pr mode; ignored in commit mode.
+    required: false
+    default: "rebase"
+  dry-run:
+    description: "Validate and emit summary/output, but make no commit or PR."
+    required: false
+    default: "false"
+  app-client-id:
+    description: "GitHub App client ID for authentication."
+    required: true
+  app-private-key:
+    description: "GitHub App private key (PEM format)."
+    required: true
+outputs:
+  result:
+    description: |
+      Structured JSON describing what the run did, validated by
+      https://raw.githubusercontent.com/spencerbeggs/claude-code-marketplace-manager/main/claude-code-marketplace-manager.output.json
+      Parse it for the full contract; the scalars below mirror the common facts.
+  status:
+    description: "no-op | success | failed"
+  changed:
+    description: "true when the manifest was modified"
+  mode:
+    description: "commit | pr"
+  commit-sha:
+    description: "SHA of the verified commit, or empty"
+  commit-url:
+    description: "HTML URL of the commit, or empty"
+  pr-number:
+    description: "PR number (pr mode), or empty"
+  pr-url:
+    description: "PR URL (pr mode), or empty"
+  plugins-updated:
+    description: "Count of plugins whose fields changed"
