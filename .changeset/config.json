@@ -3,7 +3,7 @@
 	"changelog": [
 		"@savvy-web/changelog",
 		{
-			"repo": "savvy-web/github-action-template"
+			"repo": "spencerbeggs/claude-code-marketplace-manager"
 		}
 	],
 	"commit": false,
