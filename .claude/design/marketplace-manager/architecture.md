@@ -14,7 +14,7 @@ dependencies:
   - "@savvy-web/github-action-effects"
   - "@savvy-web/github-action-builder"
   - "@effected/jsonc"
-  - effect@4.0.0-beta.99
+  - effect@4.0.0-beta.101
 ---
 
 # marketplace-manager — architecture
@@ -28,7 +28,7 @@ partial-merge updates to existing `git-subdir` plugin entries (any subset of
 the change as a **verified** commit — either directly on the base branch
 (`commit` mode) or via a pull request (`pr` mode).
 
-It is built on Effect v4 (`4.0.0-beta.99`) and `@savvy-web/github-action-effects`,
+It is built on Effect v4 (`4.0.0-beta.101`) and `@savvy-web/github-action-effects`,
 bundled into a committed `dist/` by `@savvy-web/github-action-builder`.
 
 ### Why it exists
@@ -79,9 +79,12 @@ The full logical pipeline, in order (step 1 in `program`, steps 2–9 in
    partial-merge via `@effected/jsonc`, matched by plugin name. An unknown name
    fails with `PluginNotFoundError`.
 4. **No-op guard.** If the edited text equals the original (`!edit.changed`),
-   emit a `noop` result and stop — no validation, no commit.
-5. **Validate the RESULT** (`ManifestValidator.validateManifest`) — ajv
-   structural + semantic checks *before any commit*. See
+   emit a `noop` result and stop — no validation, no commit. `EditResult` is a
+   union discriminated on `changed`, so this guard is also what narrows the edit
+   to the `ChangedEdit` that step 5 requires.
+5. **Validate the RESULT** (`ManifestValidator.validateEdit`) — ajv structural +
+   semantic checks *before any commit*, returning the branded
+   `ValidatedManifestChange` that `land` requires. See
    [validation.md](./validation.md).
 6. **Dry-run guard.** If `dryRun`, emit the summary/output and stop before
    landing. Dry-run never reads the token identity, so no provisioned token is
@@ -124,8 +127,9 @@ which is what keeps commits verified:
 
 - **commit mode:** `commit.commitFiles(base, message, [file])` directly on the
   base branch (`commitFiles` reads the base head as parent itself).
-- **pr mode:** `branch.exists` → (if absent) `branch.getSha(base)` +
-  `branch.create(branch, baseSha)` → `commit.commitFiles(branch, …)` →
+- **pr mode:** `branch.getSha(base)` → `branch.exists` → **`branch.reset(branch,
+  baseSha)`** if present, else `branch.create(branch, baseSha)` →
+  `commit.commitFiles(branch, …)` →
   `pulls.getOrCreate({ head, base, title, body, autoMerge })` (reuses/updates an
   existing PR for the same head). `autoMerge` (`merge`|`squash`|`rebase`, input
   default `rebase`) is applied on both the create and the update path — the
@@ -133,6 +137,34 @@ which is what keeps commits verified:
   GraphQL mutation via `Effect.tap` after either — so re-running the action
   against an already-open PR re-applies the current method. `commit` mode never
   reaches this branch, which is how the input has "no effect unless mode is pr".
+
+### The pr-mode branch is force-synced onto base every run
+
+`land` roots the head branch at base's **current** tip on every `pr`-mode run,
+discarding any commits an earlier run left there. The `branch` input defaults to
+a fixed name (`chore/repin-plugins`) reused run over run, so without this the
+branch accumulates commits against ever-staler bases until the PR is unmergeable
+(observed: `spencerbeggs/bot` PR #12, `mergeable: "CONFLICTING"`).
+
+The reset is unconditional rather than gated on detecting an open PR: a stale
+branch whose PR was already closed is precisely the case that most needs
+re-rooting. `getSha(base)` is therefore called on both paths.
+
+The TOCTOU recovery around `branch.create` also resets, so a concurrent creator
+that rooted the branch elsewhere is corrected rather than inherited — both paths
+converge on `branch tip == baseSha`.
+
+Consequences worth knowing:
+
+- A human commit pushed onto the `pr`-mode head branch **is discarded**. That
+  branch is action-owned by design; no input guards it.
+- The reset can never produce an empty diff, because `land` is only reached once
+  the no-op guard has proven the edit differs from base. No PR close/reopen
+  handling is needed.
+- **Assumption: the checkout is `base`.** The committed text is read from the
+  local checkout, so pointing `base-branch` at a ref other than the checked-out
+  one produces a tree derived from the wrong ref. Pre-existing hazard, not
+  addressed here.
 
 `resolveBaseBranch(input)` returns the explicit `base-branch` input when set,
 otherwise resolves the repo's `default_branch` via `client.rest("repos.get")`.

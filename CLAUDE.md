@@ -14,7 +14,7 @@ ref→sha resolution.
 
 ## Stack
 
-- Effect v4 (`4.0.0-beta.99`) + `@savvy-web/github-action-effects`.
+- Effect v4 (`4.0.0-beta.101`) + `@savvy-web/github-action-effects`.
 - `@effected/jsonc` for format-preserving edits; `ajv` for manifest validation.
 - Bundled to a committed `dist/` by `@savvy-web/github-action-builder`.
 - Node ≥ 24.11; pnpm; Biome; Vitest.
@@ -36,7 +36,14 @@ ref→sha resolution.
 - Inputs are a manual/`json` **XOR**, enforced in `inputs.ts`; both normalize to
   `ParsedInputs.patches`.
 - Validate the edited **result** before any commit; no-op guard skips validation
-  and landing when the text is byte-stable.
+  and landing when the text is byte-stable. Both halves are **type-enforced**:
+  `EditResult` is a `NoopEdit | ChangedEdit` union, and `land` requires the
+  branded `ValidatedManifestChange` that only `validateEdit` mints — so don't
+  reach for `validateManifest` + a raw string at a call site.
+- `pr` mode **force-resets** the head branch onto `base` every run, discarding
+  any earlier run's commits. Deliberate: `branch` defaults to a fixed name, and
+  without the reset the PR drifts until it conflicts. A human commit on that
+  branch is collateral — it's action-owned.
 - The installation token is always revoked in `post` — no opt-out.
 - Effect Schemas are the source of truth; the root `*.input.json` /
   `*.output.json` schemas are generated and **drift-tested** — regenerate after

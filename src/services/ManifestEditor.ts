@@ -9,14 +9,33 @@ import { decodeMarketplace } from "../schema/marketplace.js";
 /** Path of the manifest within the checkout. */
 export const MANIFEST_PATH = ".claude-plugin/marketplace.json";
 
-/** Outcome of applying patches to the manifest text. */
-export interface EditResult {
+/** Fields shared by both {@link EditResult} variants. */
+interface EditResultBase {
 	readonly original: string;
 	readonly editedText: string;
-	readonly changed: boolean;
 	readonly manifestName: string;
+}
+
+/** A byte-stable edit: nothing to validate, nothing to land. */
+export interface NoopEdit extends EditResultBase {
+	readonly changed: false;
+	/** Always empty — a byte-stable result records no changes. */
+	readonly changes: readonly [];
+}
+
+/** An edit that actually changed the manifest text. */
+export interface ChangedEdit extends EditResultBase {
+	readonly changed: true;
 	readonly changes: ReadonlyArray<ChangeRecord>;
 }
+
+/**
+ * Outcome of applying patches to the manifest text. Discriminated on `changed`,
+ * so narrowing past the no-op guard yields a {@link ChangedEdit} — the only
+ * thing `ManifestValidator.validateEdit` accepts, which is what keeps a
+ * byte-stable no-op from reaching validation or a commit.
+ */
+export type EditResult = NoopEdit | ChangedEdit;
 
 const FIELDS = ["url", "path", "sha"] as const;
 
@@ -76,12 +95,13 @@ export const applyPatches = (
 			}
 		}
 
-		// Defense in depth: keep `changes` self-consistent with `changed` even
-		// though the sole caller (program.ts) already gates on `changed` before
-		// ever reading `changes` for a byte-stable no-op — a byte-stable result
-		// should never carry transient per-write records that net out to nothing.
-		const changed = currentText !== text;
-		return { original: text, editedText: currentText, changed, manifestName, changes: changed ? changes : [] };
+		// `changes` is kept self-consistent with `changed` by the union itself:
+		// NoopEdit types `changes` as `readonly []`, so a byte-stable result cannot
+		// carry the transient per-write records that netted out to nothing.
+		if (currentText === text) {
+			return { original: text, editedText: currentText, changed: false, manifestName, changes: [] } satisfies NoopEdit;
+		}
+		return { original: text, editedText: currentText, changed: true, manifestName, changes } satisfies ChangedEdit;
 	});
 
 /**

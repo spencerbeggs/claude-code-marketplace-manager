@@ -10,7 +10,7 @@ related:
   - ./architecture.md
   - ./validation.md
 dependencies:
-  - effect@4.0.0-beta.99
+  - effect@4.0.0-beta.101
 ---
 
 # marketplace-manager — input & output contracts

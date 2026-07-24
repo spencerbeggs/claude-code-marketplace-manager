@@ -43,7 +43,7 @@ inputs:
     required: false
     default: ""
   branch:
-    description: "PR head branch (pr mode)."
+    description: "PR head branch (pr mode). Force-reset onto base on every run, so any commits an earlier run left on it are discarded."
     required: false
     default: "chore/repin-plugins"
   commit-message:
