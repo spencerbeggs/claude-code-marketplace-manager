@@ -1,4 +1,4 @@
-# Marketplace Manager
+# Claude Code Marketplace Manager
 
 [![GitHub release](https://img.shields.io/github/v/release/spencerbeggs/claude-code-marketplace-manager?label=release&color=2088ff)](https://github.com/spencerbeggs/claude-code-marketplace-manager/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-4caf50.svg)](https://opensource.org/licenses/MIT)

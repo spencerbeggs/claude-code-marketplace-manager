@@ -1,11 +1,9 @@
-name: Marketplace Manager
-description: >-
-  Partial-merge edits git-subdir plugin entries in .claude-plugin/marketplace.json,
-  validates the result, and lands it as a verified commit or pull request.
+name: Claude CodeMarketplace Manager
+description: Automatically repin Claude Code plugins to new commit SHAs
 author: C. Spencer Beggs
 branding:
-  icon: package
-  color: blue
+  icon: refresh-cw
+  color: orange
 runs:
   using: node24
   pre: dist/pre.js
