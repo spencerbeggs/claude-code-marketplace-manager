@@ -33,8 +33,6 @@ jobs:
       artifact-metadata: write
     with:
       dry-run: ${{ inputs.dry_run || false }}
-      app-bot-id: ${{ vars.APP_BOT_ID }}
-      app-bot-name: ${{ vars.APP_BOT_NAME }}
       skip-claude-review: false
     # Explicit secrets (zizmor secrets-inherit) — only what the reusable
     # workflow's `secrets:` block declares, by name.
