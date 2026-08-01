@@ -1,5 +1,17 @@
 # claude-code-marketplace-manager
 
+## 1.0.2
+
+### Dependencies
+
+* | Dependency                       | Type       | Action  | From   | To     |                                                                        |
+  | -------------------------------- | ---------- | ------- | ------ | ------ | ---------------------------------------------------------------------- |
+  | @savvy-web/github-action-effects | dependency | updated | ^3.0.5 | ^3.1.0 | [#8][#8] Thanks [@spencerbeggs](https://github.com/apps/spencerbeggs)! |
+
+### Patch Changes
+
+[#8]: https://github.com/spencerbeggs/claude-code-marketplace-manager/pull/8
+
 ## 1.0.1
 
 ### Bug Fixes
