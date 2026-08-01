@@ -22,7 +22,7 @@ jobs:
     name: Workflow
     # Pinned to a commit SHA (zizmor unpinned-uses) rather than the mutable
     # @main ref — bump deliberately when spencerbeggs/.github changes.
-    uses: spencerbeggs/.github/.github/workflows/release.yml@c7bfce7146b9eda8a90df6c63c8a21b555ad6c42
+    uses: spencerbeggs/.github/.github/workflows/release.yml@main
     permissions:
       contents: write
       pull-requests: write
