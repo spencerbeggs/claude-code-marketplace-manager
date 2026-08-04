@@ -193,7 +193,15 @@ describe("parseInputs", () => {
 			// the caller believed was a dry run lands a real commit. A malformed
 			// value must fail loudly — the default is for ABSENCE, not garbage.
 			const error = yield* withInputs({ name: "a", sha: SHA, "dry-run": "yes" }).pipe(Effect.flip);
-			assert.notStrictEqual(error, undefined);
+
+			// Deliberately NOT `assertInvalidInput`: `dry-run` is a `Config` read
+			// (`ActionInput.boolean` + `withDefault`), so a malformed value fails
+			// as a `ConfigError` before this module's own validation runs. Asserting
+			// `InvalidInputError` here would assert the opposite of the truth — and
+			// that helper exists precisely to catch a `ConfigError` leaking through.
+			assert.strictEqual(error._tag, "ConfigError");
+			// Name the input too, so an unrelated failure cannot keep this green.
+			assert.include(String(error), "dry-run");
 		}),
 	);
 });
