@@ -11,20 +11,10 @@
 				"LLMS.md"
 			]
 		},
-		"systems": {
-			"url": "https://github.com/savvy-web/systems.git",
-			"ref": "747cedf4c2b48a357ed30fd9b3d1d506918a9fa0",
-			"purpose": "Read-only source for @savvy-web/github-action-effects, @savvy-web/github-action-builder, and @savvy-web/silk-effects — the libraries this action is built on.",
-			"sparse": [
-				"packages/github-action-effects",
-				"packages/github-action-builder",
-				"packages/silk-effects"
-			]
-		},
 		"effected": {
 			"url": "https://github.com/spencerbeggs/effected.git",
 			"ref": "@effected/github-actions@0.5.0",
-			"purpose": "Read-only source for the @effected kit — the authority for porting this action off @savvy-web/github-action-effects onto @effected/github-actions, @effected/github, @effected/commands and @effected/jsonc.",
+			"purpose": "Read-only source for @effected/github-actions, @effected/github and @effected/jsonc — the libraries this action is built on. Pin tracks the installed @effected/github-actions version.",
 			"sparse": [
 				"packages/github-actions",
 				"packages/github",
