@@ -199,7 +199,7 @@ Read a scalar in a later step:
 - **No-op safety.** When the requested changes leave the manifest byte-for-byte unchanged, the run reports `status: no-op` and makes no commit or PR.
 - **Generated messages.** With `commit-message`, `pr-title`, and `pr-body` unset, the default subject is `ai(marketplace): repinned <plugin>@<manifest>` (or `repinned N plugins` for several) with a DCO `Signed-off-by:` trailer from the App bot.
 - **Dry run.** `dry-run: true` runs the full edit and validation and populates the outputs, but writes no commit or PR.
-- **Auto-merge.** In `pr` mode, the opened (or reused) PR has auto-merge enabled with the `auto-merge` method (default `rebase`) via GitHub's native auto-merge — the PR still merges only once required checks and reviews pass. Re-running the action against the same open PR re-applies auto-merge with the current method. Has no effect in `commit` mode.
+- **Auto-merge.** In `pr` mode, the opened (or reused) PR has auto-merge enabled with the `auto-merge` method (default `rebase`) via GitHub's native auto-merge — the PR still merges only once required checks and reviews pass. Auto-merge is applied as a separate step after the pull request is opened or updated, so a repository that refuses the requested merge method still gets its pull request. Re-running the action against the same open PR re-applies auto-merge with the current method. Has no effect in `commit` mode.
 
 ## Examples
 
@@ -232,7 +232,7 @@ Open a pull request instead of committing to the base branch (auto-merge default
     app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ```
 
-The head branch is reset onto the base branch at the start of every `pr`-mode run, so re-running against the same `branch` updates the existing pull request in place instead of stacking another commit on it. Each run leaves a single commit that diffs cleanly against the current base. Treat that branch as owned by the action: commits pushed to it by anything else are discarded on the next run.
+Every `pr`-mode run re-roots the head branch at the base branch's current tip: the commit is built against that tip first, then the head branch is moved straight to the finished commit in one step. Re-running against the same `branch` updates the existing pull request in place instead of stacking another commit on it, and the branch never passes through a state where it equals base. Each run leaves a single commit that diffs cleanly against the current base. Treat that branch as owned by the action: commits pushed to it by anything else are discarded on the next run.
 
 Open a pull request with a specific auto-merge method:
 

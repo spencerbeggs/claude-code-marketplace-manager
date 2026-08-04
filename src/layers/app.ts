@@ -1,49 +1,54 @@
 /**
  * Application layer composition.
  *
- * Wires library layers for the pre/main/post phases together.
+ * Wires the `@effected` layers for the pre/main/post phases together.
  *
  * @module layers/app
  */
 
-import { NodeFileSystem, NodeServices } from "@effect/platform-node";
-import {
-	ActionStateLive,
-	GitBranchLive,
-	GitCommitLive,
-	GitHubAppLive,
-	GitHubGraphQLLive,
-	GitHubToken,
-	OctokitAuthAppLive,
-	PullRequestLive,
-} from "@savvy-web/github-action-effects";
+import { GitBranch, GitCommit, GitHubApp, GitHubRepository, PullRequest, Repo } from "@effected/github";
+import { GitHubToken } from "@effected/github-actions";
 import { Layer } from "effect";
-import { FetchHttpClient } from "effect/unstable/http";
 
-/** pre/post: GitHubApp for provision/dispose + filesystem for ActionState. */
-export const PreLive = Layer.mergeAll(
-	GitHubAppLive.pipe(Layer.provide(OctokitAuthAppLive), Layer.provide(FetchHttpClient.layer)),
-	NodeFileSystem.layer,
-);
+/**
+ * pre/post: minting and revoking the installation token.
+ *
+ * `GitHubApp.layer` requires nothing — it signs the app JWT itself. The three
+ * layers this replaced (`GitHubAppLive` over `OctokitAuthAppLive` over
+ * `FetchHttpClient.layer`) plus `NodeFileSystem.layer` all collapse into it:
+ * `ActionRuntime.layer` already provides `FileSystem`, `HttpClient`,
+ * `ActionState` and `ActionOutputs` to anything `Action.run` runs.
+ */
+export const PreLive = GitHubApp.layer;
 export const PostLive = PreLive;
 
 /**
- * main: the installation token provisioned in pre is read back via
- * GitHubToken.client() (Layer.orDie — a missing token is a wiring defect) and
- * the git services are built from that client. NodeServices provides FileSystem
- * (manifest read) and backs ActionState.
+ * The client built from the token `pre` provisioned.
+ *
+ * `Layer.orDie` because a missing or expired token in `main` is a wiring
+ * defect, not a condition this action can act on — and because
+ * `ActionRunOptions.layer` requires a `never` error channel.
+ *
+ * Bound to a `const` deliberately: `clientLayer()` is a parameterized factory
+ * and layers memoize **by reference**, so calling it at each composition site
+ * below would build four independent clients.
  */
-const actionState = ActionStateLive.pipe(Layer.provide(NodeServices.layer));
-const githubClient = GitHubToken.client().pipe(Layer.provide(actionState), Layer.orDie);
-// PullRequestLive requires GitHubClient | GitHubGraphQL (confirmed:
-// layers/PullRequestLive.ts:94), so its own GitHubGraphQL dependency is built
-// from the same client and merged in alongside it.
-const ghGraphql = GitHubGraphQLLive.pipe(Layer.provide(githubClient));
+const client = GitHubToken.clientLayer().pipe(Layer.orDie);
 
+/**
+ * The repository the resource services act on, from `GITHUB_REPOSITORY`.
+ *
+ * Provided as a layer, but every resource method still carries `Repo` in its
+ * requirements and resolves it per call — which is what keeps `Repo.provide`
+ * working for a scoped override rather than silently doing nothing.
+ */
+const repo = Repo.layerFromConfig().pipe(Layer.orDie);
+
+/** main: the git resource services, each built from the one shared client. */
 export const MainLive = Layer.mergeAll(
-	githubClient,
-	GitCommitLive.pipe(Layer.provide(githubClient)),
-	GitBranchLive.pipe(Layer.provide(githubClient)),
-	PullRequestLive.pipe(Layer.provide(Layer.merge(githubClient, ghGraphql))),
-	NodeServices.layer,
+	GitCommit.layer.pipe(Layer.provide(client)),
+	GitBranch.layer.pipe(Layer.provide(client)),
+	PullRequest.layer.pipe(Layer.provide(client)),
+	GitHubRepository.layer.pipe(Layer.provide(client)),
+	repo,
 );

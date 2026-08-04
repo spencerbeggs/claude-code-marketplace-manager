@@ -6,3 +6,7 @@
 	path = .repos/systems
 	url = https://github.com/savvy-web/systems.git
 	shallow = true
+[submodule ".repos/effected"]
+	path = .repos/effected
+	url = https://github.com/spencerbeggs/effected.git
+	shallow = true
