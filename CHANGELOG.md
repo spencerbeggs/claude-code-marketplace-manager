@@ -1,5 +1,17 @@
 # claude-code-marketplace-manager
 
+## 1.0.3
+
+### Dependencies
+
+* | Dependency      | Type       | Action  | From    | To      |                                                                          |
+  | --------------- | ---------- | ------- | ------- | ------- | ------------------------------------------------------------------------ |
+  | @effected/jsonc | dependency | updated | \~0.5.1 | \~0.5.2 | [#17][#17] Thanks [@spencerbeggs](https://github.com/apps/spencerbeggs)! |
+
+### Patch Changes
+
+[#17]: https://github.com/spencerbeggs/claude-code-marketplace-manager/pull/17
+
 ## 1.0.2
 
 ### Dependencies
