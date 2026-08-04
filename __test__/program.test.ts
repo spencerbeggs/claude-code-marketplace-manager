@@ -154,6 +154,13 @@ describe("program", () => {
 			assert.strictEqual(outputValue(h.recorded, "status"), "failed");
 			// The fallback shape for an unparsed input set.
 			assert.strictEqual(outputValue(h.recorded, "mode"), "commit");
+			// The structured `result` is the contract downstream consumers read,
+			// so assert it directly: checking only the scalars would still pass if
+			// failure reporting stopped emitting `result` altogether.
+			const result = outputValue(h.recorded, "result");
+			assert.isString(result);
+			const parsed: unknown = JSON.parse(result as string);
+			assert.deepInclude(parsed, { status: "failed", hasFailures: true });
 		}),
 	);
 });

@@ -185,4 +185,15 @@ describe("parseInputs", () => {
 			assert.strictEqual(parsed.dryRun, false);
 		}),
 	);
+
+	it.effect("rejects a malformed dry-run rather than silently defaulting it to false", () =>
+		Effect.gen(function* () {
+			// The failure mode this guards: `dry-run` reaching a boolean read as
+			// something like "yes" and being swallowed by the default, so a run
+			// the caller believed was a dry run lands a real commit. A malformed
+			// value must fail loudly — the default is for ABSENCE, not garbage.
+			const error = yield* withInputs({ name: "a", sha: SHA, "dry-run": "yes" }).pipe(Effect.flip);
+			assert.notStrictEqual(error, undefined);
+		}),
+	);
 });

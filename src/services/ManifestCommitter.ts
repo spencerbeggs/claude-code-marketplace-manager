@@ -1,6 +1,7 @@
 import type { GitHubError, GitHubGraphQLError } from "@effected/github";
 import { FileContent, GitBranch, GitCommit, GitHubRepository, PullRequest, Repo } from "@effected/github";
 import { Effect } from "effect";
+import { InvalidInputError } from "../errors/errors.js";
 import { MANIFEST_PATH } from "./ManifestEditor.js";
 import type { ValidatedManifestChange } from "./ManifestValidator.js";
 
@@ -75,15 +76,38 @@ export const resolveBaseBranch = (input: string | null): Effect.Effect<string, G
  * recovery: a concurrent creator is recognized structurally through
  * `kind: "alreadyExists"` rather than by matching error prose, and the recovery
  * resets rather than inheriting a branch rooted somewhere else.
+ *
+ * **`pr` mode refuses a head branch equal to its base**, before any commit is
+ * built. The two are independent inputs — `branch` is given, `base` is the
+ * `base-branch` input or the repo default — so nothing structural stops them
+ * colliding. If they did, the single `upsert` below would move the *base*
+ * branch to the new commit, landing an unreviewed commit directly on it, and
+ * only then would `PullRequest.upsert` fail on a head that equals its base.
+ * The failure would arrive after the write it was supposed to prevent. The
+ * guard lives here rather than at the call site because it protects the write,
+ * not the caller.
  */
 export const land = (
 	params: LandParams,
-): Effect.Effect<LandResult, GitHubError | GitHubGraphQLError, GitCommit | GitBranch | PullRequest | Repo> =>
+): Effect.Effect<
+	LandResult,
+	GitHubError | GitHubGraphQLError | InvalidInputError,
+	GitCommit | GitBranch | PullRequest | Repo
+> =>
 	Effect.gen(function* () {
 		const commit = yield* GitCommit;
 		const { owner, repo } = yield* Repo;
 		const changes = [new FileContent({ path: MANIFEST_PATH, content: params.change.editedText })];
 		const commitUrl = (sha: string): string => `https://github.com/${owner}/${repo}/commit/${sha}`;
+
+		if (params.mode === "pr" && params.base === params.branch) {
+			return yield* Effect.fail(
+				new InvalidInputError({
+					field: "branch",
+					reason: `pr mode needs a head branch distinct from its base, but both are "${params.base}"`,
+				}),
+			);
+		}
 
 		if (params.mode === "commit") {
 			// `commitFiles` reads the base head as the parent itself.

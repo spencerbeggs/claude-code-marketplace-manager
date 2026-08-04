@@ -250,8 +250,21 @@ are now the single **`GitHubError`**, which carries a structured `kind`
 (e.g. `"alreadyExists"`, `"notFound"`) so call sites discriminate on shape
 rather than on error prose. The one exception is the GraphQL-backed auto-merge
 path, which adds `GitHubGraphQLError` — hence `land`'s error channel is
-`GitHubError | GitHubGraphQLError` while `resolveBaseBranch`'s is just
-`GitHubError`. Library errors are still matched, never wrapped.
+`GitHubError | GitHubGraphQLError | InvalidInputError` while
+`resolveBaseBranch`'s is just `GitHubError`. Library errors are still matched,
+never wrapped.
+
+`land`'s `InvalidInputError` is the one failure it raises itself: **`pr` mode
+refuses a head branch equal to its base.** `branch` and `base` are independent
+inputs — the latter resolved from `base-branch` or the repo default — so
+nothing structural prevents them colliding. If they did, the single
+`GitBranch.upsert` would move the *base* branch to the new commit, landing an
+unreviewed commit directly on it, and `PullRequest.upsert` would only fail
+afterwards on a head equal to its base: the failure would arrive after the
+write it exists to prevent. The guard runs before the commit is built, and
+lives in `land` rather than at the `program.ts` call site because it protects
+the write, not the caller. Commit mode is deliberately unaffected — it writes
+to `base` by design and never reads `branch`.
 
 `Action.run` owns the exit code; misconfig dies at the layer boundary via
 `Layer.orDie`; summary/comment writes demote to `logWarning`.

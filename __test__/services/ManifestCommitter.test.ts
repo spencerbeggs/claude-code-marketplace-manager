@@ -60,7 +60,17 @@ const harness = (branches: Record<string, string> = {}) => {
 	const commits: Array<{ readonly message: string; readonly tree: string; readonly parents: ReadonlyArray<string> }> =
 		[];
 	const contents: Array<string> = [];
-	const commitFileCalls: Array<{ readonly branch: string; readonly message: string }> = [];
+	/**
+	 * Every key the caller actually passed to `createCommit`, before any
+	 * destructuring. Recording the request rather than a rebuilt object is what
+	 * lets B1 fail if a caller ever adds `author`, `committer` or `signature`.
+	 */
+	const commitRequestKeys: Array<ReadonlyArray<string>> = [];
+	const commitFileCalls: Array<{
+		readonly branch: string;
+		readonly message: string;
+		readonly paths: ReadonlyArray<string>;
+	}> = [];
 	const upserts: Array<{ readonly name: string; readonly sha: string }> = [];
 	const prUpserts: Array<{
 		readonly title: string;
@@ -102,14 +112,18 @@ const harness = (branches: Record<string, string> = {}) => {
 				}
 				return Effect.succeed("new-tree");
 			},
-			createCommit: ({ message, tree, parents }) => {
+			createCommit: (request) => {
 				calls.push("commit.createCommit");
+				// Record the request's own keys BEFORE destructuring — a rebuilt
+				// object can only ever have the keys this harness names.
+				commitRequestKeys.push(Object.keys(request).sort());
+				const { message, tree, parents } = request;
 				commits.push({ message, tree, parents });
 				return Effect.succeed("new-commit-sha");
 			},
 			commitFiles: ({ branch, message, changes }) => {
 				calls.push("commit.commitFiles");
-				commitFileCalls.push({ branch, message });
+				commitFileCalls.push({ branch, message, paths: changes.map((c) => c.path) });
 				for (const c of changes) {
 					if (c._tag === "FileContent") {
 						contents.push(c.content);
@@ -146,7 +160,19 @@ const harness = (branches: Record<string, string> = {}) => {
 		repoLayer,
 	);
 
-	return { layer, refs, calls, trees, commits, contents, commitFileCalls, upserts, prUpserts, autoMerges };
+	return {
+		layer,
+		refs,
+		calls,
+		trees,
+		commits,
+		commitRequestKeys,
+		contents,
+		commitFileCalls,
+		upserts,
+		prUpserts,
+		autoMerges,
+	};
 };
 
 describe("land", () => {
@@ -155,7 +181,9 @@ describe("land", () => {
 			const h = harness();
 			const result = yield* land({ mode: "commit", ...params }).pipe(Effect.provide(h.layer));
 
-			assert.deepStrictEqual(h.commitFileCalls, [{ branch: "main", message: params.commitMessage }]);
+			assert.deepStrictEqual(h.commitFileCalls, [
+				{ branch: "main", message: params.commitMessage, paths: [MANIFEST_PATH] },
+			]);
 			// The validated change's text is what reaches the tree, at the manifest
 			// path — not the original, and not some other field.
 			assert.deepStrictEqual(h.contents, [EDITED]);
@@ -174,6 +202,9 @@ describe("land", () => {
 			yield* land({ mode: "commit", ...params }).pipe(Effect.provide(h.layer));
 			assert.strictEqual(MANIFEST_PATH, ".claude-plugin/marketplace.json");
 			assert.deepStrictEqual(h.contents, [EDITED]);
+			// The path the caller actually passed, not just the constant — commit
+			// mode writes through `commitFiles`, which takes its own changes list.
+			assert.deepStrictEqual(h.commitFileCalls[0]?.paths, [MANIFEST_PATH]);
 		}),
 	);
 
@@ -283,14 +314,48 @@ describe("land", () => {
 		Effect.gen(function* () {
 			// Structural, and deliberately so: `GitCommit` exposes no author,
 			// committer or signature parameter, so the only thing a caller COULD
-			// pass is the message. This asserts the surface rather than a value —
-			// if the kit ever grew such a parameter, the object below would gain a
-			// key and this fails, which is the moment to re-read verified-commits.md.
+			// pass is the message. This asserts the keys of the REQUEST as it was
+			// passed — asserting a rebuilt object instead would only ever prove
+			// what this harness names, and could never fail. If `land` or the kit
+			// grows such a field, this fails: re-read verified-commits.md then.
 			const h = harness({ main: "base-sha" });
 			yield* land({ mode: "pr", ...params }).pipe(Effect.provide(h.layer));
-			assert.deepStrictEqual(Object.keys(h.commits[0] ?? {}).sort(), ["message", "parents", "tree"]);
+			assert.deepStrictEqual(h.commitRequestKeys, [["message", "parents", "tree"]]);
 			// The bot identity reaches the commit only as message text.
 			assert.strictEqual(h.commits[0]?.message, params.commitMessage);
+		}),
+	);
+
+	it.effect("pr mode refuses a head branch equal to its base, before writing anything", () =>
+		Effect.gen(function* () {
+			// `branch` and `base` are independent inputs, so nothing structural
+			// stops them colliding. If they did and this guard were absent, the
+			// single `upsert` would move the BASE branch to the new commit — an
+			// unreviewed commit landing directly on it — and `PullRequest.upsert`
+			// would only fail afterwards, on a head equal to its base. The failure
+			// would arrive after the write it exists to prevent.
+			const h = harness({ main: "base-sha" });
+			const error = yield* land({ mode: "pr", ...params, base: "main", branch: "main" }).pipe(
+				Effect.provide(h.layer),
+				Effect.flip,
+			);
+
+			assert.strictEqual(error._tag, "InvalidInputError");
+			// Nothing was written, and nothing was even built: the guard runs
+			// before the commit, not merely before the ref move.
+			assert.deepStrictEqual(h.calls, []);
+			assert.deepStrictEqual(h.upserts, []);
+			assert.deepStrictEqual(h.commits, []);
+		}),
+	);
+
+	it.effect("commit mode is unaffected when base and branch coincide", () =>
+		Effect.gen(function* () {
+			// The guard is scoped to `pr`: commit mode writes to `base` by design
+			// and never reads `branch`, so an equal pair is meaningless, not fatal.
+			const h = harness();
+			yield* land({ mode: "commit", ...params, base: "main", branch: "main" }).pipe(Effect.provide(h.layer));
+			assert.deepStrictEqual(h.commitFileCalls[0]?.branch, "main");
 		}),
 	);
 });
