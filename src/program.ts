@@ -1,4 +1,5 @@
-import { ActionOutputs, GitHubToken } from "@savvy-web/github-action-effects";
+import type { ActionOutputsShape } from "@effected/github-actions";
+import { ActionOutputs, GitHubToken } from "@effected/github-actions";
 import { Effect, Exit } from "effect";
 import type { ParsedInputs } from "./inputs.js";
 import { parseInputs } from "./inputs.js";
@@ -10,7 +11,7 @@ import { applyPatches, readManifest } from "./services/ManifestEditor.js";
 import { validateEdit } from "./services/ManifestValidator.js";
 
 /** Emit the structured result (non-fatal), convenience scalars, and the job summary (non-fatal). */
-const emit = (outputs: typeof ActionOutputs.Service, output: ReportOutput) =>
+const emit = (outputs: ActionOutputsShape, output: ReportOutput) =>
 	Effect.gen(function* () {
 		yield* outputs
 			.setJson("result", output, ReportOutput)
@@ -29,7 +30,7 @@ const emit = (outputs: typeof ActionOutputs.Service, output: ReportOutput) =>
 	});
 
 /** Emit a structured failed `result` (best-effort) for the given mode/dry-run. */
-const emitFailure = (outputs: typeof ActionOutputs.Service, mode: "commit" | "pr", dryRun: boolean) =>
+const emitFailure = (outputs: ActionOutputsShape, mode: "commit" | "pr", dryRun: boolean) =>
 	emit(
 		outputs,
 		toReportOutput({
@@ -46,7 +47,7 @@ const emitFailure = (outputs: typeof ActionOutputs.Service, mode: "commit" | "pr
 	);
 
 /** Read, edit, validate, and land the manifest change once inputs are parsed. */
-const runOrchestration = (outputs: typeof ActionOutputs.Service, inputs: ParsedInputs) =>
+const runOrchestration = (outputs: ActionOutputsShape, inputs: ParsedInputs) =>
 	Effect.gen(function* () {
 		// 1–4: read, edit, no-op guard.
 		const text = yield* readManifest();

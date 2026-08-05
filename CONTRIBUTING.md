@@ -5,8 +5,8 @@ This document explains how to set up your environment and submit changes.
 
 ## Prerequisites
 
-- **Node.js** `>=24.11.0` (see `engines` in `package.json`)
-- **pnpm** `11.16.0` (enforced via the `packageManager` field)
+- **Node.js** — the range in `engines` in `package.json`
+- **pnpm** — the exact version pinned in the `packageManager` field of `package.json`
 - **Git** with commit signing configured (recommended)
 
 ## Setup
@@ -45,13 +45,18 @@ not be hand-edited.
 
 ## Code Quality Standards
 
-- **Formatter/Linter:** Biome `2.5.1`, extending `@savvy-web/silk/biome`
-- **TypeScript:** `7.0.2`, strict mode, extending
+- **Formatter/Linter:** Biome, extending `@savvy-web/silk/biome`
+- **TypeScript:** strict mode, extending
   `@savvy-web/github-action-builder/tsconfig/action.json`
-- **Effect:** `4.0.0-beta.99` — follow the project's Effect v4 idioms
+- **Effect:** Effect v4 (pinned through the `effect` catalog entry in
+  `pnpm-workspace.yaml`) — follow the project's Effect v4 idioms
   (services/layers, Schema-first contracts)
-- **Testing:** Vitest via the `@vitest-agent/plugin` (`~2.0.6`) preset; tests
-  live under `__test__/`, mirroring the `src/` layout, as `*.test.ts` files
+- **GitHub integration:** `@effected/github-actions` for the runner
+  (inputs, outputs, state, job summary, App tokens) and `@effected/github` for
+  the GitHub REST and GraphQL API; `@effected/jsonc` for format-preserving
+  manifest edits
+- **Testing:** Vitest via the `@vitest-agent/plugin` preset; tests live under
+  `__test__/`, mirroring the `src/` layout, as `*.test.ts` files
 - **Imports:** Use `.js` extensions in relative imports; use the `node:`
   protocol for Node.js built-ins; keep type-only imports separate
 

@@ -1,4 +1,4 @@
-import { Action } from "@savvy-web/github-action-effects";
+import { Action } from "@effected/github-actions";
 import { MainLive } from "./layers/app.js";
 import { program } from "./program.js";
 

@@ -3,8 +3,8 @@ status: current
 module: marketplace-manager
 category: architecture
 created: 2026-07-23
-updated: 2026-07-23
-last-synced: 2026-07-23
+updated: 2026-08-04
+last-synced: 2026-08-04
 completeness: 90
 related:
   - ./architecture.md
@@ -17,7 +17,7 @@ related:
 
 Design documentation for the `marketplace-manager` GitHub Action (`src/`), a
 Claude Code plugin marketplace-manifest editor built on Effect v4 and
-`@savvy-web/github-action-effects`.
+`@effected/github-actions` and `@effected/github`.
 
 ## Documents
 
@@ -33,7 +33,7 @@ Claude Code plugin marketplace-manifest editor built on Effect v4 and
 - **What it does:** partial-merge edits `git-subdir` plugin entries in
   `.claude-plugin/marketplace.json`, validates the result, and lands it as a
   verified commit (direct-to-base) or a PR.
-- **Stack:** Effect `4.0.0-beta.101`, `@savvy-web/github-action-effects`,
+- **Stack:** Effect `4.0.0-beta.101`, `@effected/github-actions`, `@effected/github`,
   `@effected/jsonc`, `ajv`; bundled to `dist/` by
   `@savvy-web/github-action-builder`.
 - **Precision by design:** explicit values only — no release/ref→sha resolution.

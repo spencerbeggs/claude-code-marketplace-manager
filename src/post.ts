@@ -1,15 +1,26 @@
-import { Action, ActionState, GitHubToken } from "@savvy-web/github-action-effects";
+import { Action, ActionState, GitHubToken } from "@effected/github-actions";
 import { Effect, Option } from "effect";
 import { PostLive } from "./layers/app.js";
 import { STATE_KEYS, StartTimeState } from "./state.js";
 
 /**
  * post: revoke the GitHub App installation token, then best-effort report the
- * run duration. Revocation runs FIRST and is unconditional — it must not be
- * skippable by a typed failure elsewhere in this phase (a live installation
- * token left un-revoked is a security-relevant leak), so the duration read
- * (which can itself fail with a typed `ActionStateError`) is sequenced after
- * revocation and has its own catch so it can never displace it.
+ * run duration.
+ *
+ * @remarks
+ * Revocation runs **first** and is unconditional — it must not be skippable by
+ * a typed failure elsewhere in this phase, because a live installation token
+ * left un-revoked is a security-relevant leak. The duration read (which can
+ * itself fail with a typed `ActionStateError`) is therefore sequenced *after*
+ * revocation and carries its own catch so it can never displace it. There is no
+ * opt-out.
+ *
+ * The kit's `dispose` is already forgiving in the two shapes that matter: it
+ * reads the token with `getOptional`, so a `post` running after a `pre` that
+ * never got as far as provisioning is a no-op rather than a failure, and it
+ * skips revoking an already-expired token, which GitHub has stopped accepting
+ * anyway. The belt-and-braces `catch` below stays regardless — the invariant is
+ * that this phase cannot fail the run on the way out.
  */
 export const post = Effect.gen(function* () {
 	yield* Effect.logInfo("Revoking GitHub App installation token...");

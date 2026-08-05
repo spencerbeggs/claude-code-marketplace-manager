@@ -1,4 +1,4 @@
-import { GithubMarkdown } from "@savvy-web/github-action-effects";
+import { GitHubMarkdown } from "@effected/github-actions";
 import type { ChangeRecord } from "./schema/marketplace.js";
 import type { ReportOutput } from "./schema/report-output.js";
 
@@ -58,11 +58,11 @@ export const buildSummary = (output: ReportOutput): string => {
 		rows.push(["PR", output.pr.url ?? `#${output.pr.number}`]);
 	}
 	const blocks = [
-		GithubMarkdown.heading("📦 Marketplace Manager", 2),
-		GithubMarkdown.table(["Property", "Value"], rows),
+		GitHubMarkdown.heading("📦 Marketplace Manager", 2),
+		GitHubMarkdown.table(["Property", "Value"], rows),
 	];
 	if (output.plugins.length > 0) {
-		blocks.push(GithubMarkdown.list(output.plugins.map((p) => `\`${p.name}\` — ${p.fields.join(", ")}`)));
+		blocks.push(GitHubMarkdown.list(output.plugins.map((p) => `\`${p.name}\` — ${p.fields.join(", ")}`)));
 	}
 	return blocks.join("\n\n");
 };

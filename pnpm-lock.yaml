@@ -57,12 +57,18 @@ importers:
       '@effect/platform-node':
         specifier: catalog:effect
         version: 4.0.0-beta.101(effect@4.0.0-beta.101)(ioredis@5.11.1(supports-color@7.2.0))
+      '@effected/github':
+        specifier: ~0.2.2
+        version: 0.2.2(effect@4.0.0-beta.101)
+      '@effected/github-actions':
+        specifier: ~0.5.0
+        version: 0.5.0(@effect/platform-node@4.0.0-beta.101(effect@4.0.0-beta.101)(ioredis@5.11.1(supports-color@7.2.0)))(@effected/jsonc@0.5.2(effect@4.0.0-beta.101))(@effected/semver@0.3.1(effect@4.0.0-beta.101))(@effected/toml@0.3.2(effect@4.0.0-beta.101))(@effected/yaml@0.6.1(effect@4.0.0-beta.101))(effect@4.0.0-beta.101)(supports-color@7.2.0)
       '@effected/jsonc':
         specifier: ~0.5.2
         version: 0.5.2(effect@4.0.0-beta.101)
-      '@savvy-web/github-action-effects':
-        specifier: ^3.1.0
-        version: 3.1.0(@effect/platform-node@4.0.0-beta.101(effect@4.0.0-beta.101)(ioredis@5.11.1(supports-color@7.2.0)))(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(effect@4.0.0-beta.101)(supports-color@7.2.0)
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
       effect:
         specifier: catalog:effect
         version: 4.0.0-beta.101
@@ -70,6 +76,9 @@ importers:
       '@effect/vitest':
         specifier: catalog:effect
         version: 4.0.0-beta.101(effect@4.0.0-beta.101)(vitest@4.1.10)
+      '@effected/schemastore':
+        specifier: ^0.2.0
+        version: 0.2.0(effect@4.0.0-beta.101)
       '@savvy-web/github-action-builder':
         specifier: ^2.2.2
         version: 2.2.2(@types/node@26.1.2)(ioredis@5.11.1(supports-color@7.2.0))(typescript@7.0.2)
@@ -79,9 +88,6 @@ importers:
       '@vitest-agent/plugin':
         specifier: ^2.0.13
         version: 2.0.13(@effected/glob@0.2.2(effect@4.0.0-beta.101))(@effected/jsonc@0.5.2(effect@4.0.0-beta.101))(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(ioredis@5.11.1(supports-color@7.2.0))(supports-color@7.2.0)(typescript@7.0.2)(vitest@4.1.10)
-      ajv:
-        specifier: ^8.20.0
-        version: 8.20.0
 
 packages:
 
@@ -377,38 +383,11 @@ packages:
     resolution: {integrity: sha512-TzlTVpKPjaqW6qOYjQcYUDuGsLCNsvFHVBXkYGTAnf5V37jCWrE5haKNXzz0WZUtVHjrpV76L1buANjwXMfT8w==}
     engines: {node: '>=22'}
 
-  '@cyclonedx/cyclonedx-library@10.1.0':
-    resolution: {integrity: sha512-4yq0KTQIA32UHJwFMDeY5xj2asp3Mk5lzx4JRVXLOb0YE8w1KeR61c1m/gJ4sjMXpiiEDfaITVQu8BLUuy7t3A==}
-    engines: {node: '>=20.18.0'}
-    peerDependencies:
-      ajv: ^8.12.0
-      ajv-formats: ^3.0.1
-      ajv-formats-draft2019: ^1.6.1
-      libxmljs2: ^0.35||^0.37
-      packageurl-js: '*'
-      spdx-expression-parse: '*'
-      xmlbuilder2: ^3.0.2||^4.0.0
-    peerDependenciesMeta:
-      ajv:
-        optional: true
-      ajv-formats:
-        optional: true
-      ajv-formats-draft2019:
-        optional: true
-      libxmljs2:
-        optional: true
-      packageurl-js:
-        optional: true
-      spdx-expression-parse:
-        optional: true
-      xmlbuilder2:
-        optional: true
-
-  '@effect/platform-node-shared@4.0.0-beta.102':
-    resolution: {integrity: sha512-gVd793I72MrkX4dXo7eYtRKfNj0RW4eMRfVEKEJI16h2+mBDCzQ+gqMrog2hSTHQnaIbvbYShNQ4TVGuRCYZeQ==}
+  '@effect/platform-node-shared@4.0.0-beta.103':
+    resolution: {integrity: sha512-0aCZMBid5ifqmY55TkfCDLaGTIM8qu3bNFUW7qL9vh/7jFOkaIAMX2MA8muG4deqW17XWxawddWu4v0fK+UW3g==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
-      effect: ^4.0.0-beta.102
+      effect: ^4.0.0-beta.103
 
   '@effect/platform-node@4.0.0-beta.101':
     resolution: {integrity: sha512-pClk7dmMtHgM6Byu7CzGfrPvZ1/4BwmrRlCg2Op+iJozMkwVUxq8v4beK8b9SvxsliJjHZFznjvkVLX7LQjBqw==}
@@ -450,6 +429,19 @@ packages:
     peerDependencies:
       effect: 4.0.0-beta.101
 
+  '@effected/github-actions@0.5.0':
+    resolution: {integrity: sha512-cdHMSMPQd/7dOGzVdlY5QZUZwsg8rVbuPu/pwNBv1QbkVsr/fMn2a6ybOkIkxhU4zlldGlkIpQEWW4hlz4MEuQ==}
+    engines: {node: '>=24.11.0'}
+    peerDependencies:
+      '@effect/platform-node': 4.0.0-beta.101
+      effect: 4.0.0-beta.101
+
+  '@effected/github@0.2.2':
+    resolution: {integrity: sha512-h4x498WDhECJ7fUleh4mIO5XFXqheWzUQcWBM9N3c0aK8EZBVZpaq4cX8NbsXOkWsYq4CGWEWvvyaA/4BV3NFw==}
+    engines: {node: '>=24.11.0'}
+    peerDependencies:
+      effect: 4.0.0-beta.101
+
   '@effected/glob@0.2.2':
     resolution: {integrity: sha512-x+zXoXj+oweYRavtFpMnZ69aFg1n7/T0Oe3LWeovEPYYCsuTINvNkstYJUarbRowbAHV0MyywhTE0xuNcr2oLg==}
     engines: {node: '>=24.11.0'}
@@ -472,6 +464,22 @@ packages:
       '@effected/yaml': ^0.6.1
       effect: 4.0.0-beta.101
 
+  '@effected/markdown@0.4.2':
+    resolution: {integrity: sha512-yYJEI/agK4Nsvqe7fDTauQwNAF/AjQeSUKn9jZBhpkc7EycIRWF9sm9Rykp3pm6/bWehUaGI+N8mI2+rY/AqlQ==}
+    engines: {node: '>=24.11.0'}
+    peerDependencies:
+      '@effected/jsonc': ^0.5.2
+      '@effected/toml': ^0.3.2
+      '@effected/yaml': ^0.6.1
+      effect: 4.0.0-beta.101
+    peerDependenciesMeta:
+      '@effected/jsonc':
+        optional: true
+      '@effected/toml':
+        optional: true
+      '@effected/yaml':
+        optional: true
+
   '@effected/npm@0.8.1':
     resolution: {integrity: sha512-YR2Mll5zF1FdSjJhkC9rBsCif6ZOAZ98jL/xuqLha72dvIdUWYd6oF/sG8v6vOFm3Am1jAiphqrBfHkK4pjIUg==}
     engines: {node: '>=24.11.0'}
@@ -485,8 +493,14 @@ packages:
     peerDependencies:
       effect: 4.0.0-beta.101
 
-  '@effected/semver@0.2.1':
-    resolution: {integrity: sha512-TimUh0CyHy2ZAK48izEUDibi7gt4JaJQy0eZ3nuM4yoC23mdtgRJpbVYL4/fTUEgr0tOBuYzbnZYF036VMqKQg==}
+  '@effected/sbom@0.2.2':
+    resolution: {integrity: sha512-T6upSGe0rQ2IwNddyDZy4QLu3AlebqW0Op1Dd2D/ldYaK+F35BOFp8sn762ngKDIesFUcsN0a4VhoPzCeZMaHA==}
+    engines: {node: '>=24.11.0'}
+    peerDependencies:
+      effect: 4.0.0-beta.101
+
+  '@effected/schemastore@0.2.0':
+    resolution: {integrity: sha512-FF3kUf23AMeHretQ7Lkma+uWVg1qbGkLsB2zsWRDk4hzdDm0xSrXVKh+gHBDwidXKv/uug+Y6gDvCZmncJH8IA==}
     engines: {node: '>=24.11.0'}
     peerDependencies:
       effect: 4.0.0-beta.101
@@ -825,22 +839,6 @@ packages:
     resolution: {integrity: sha512-3zcN5Q3yEmeyxXBzqB6fXPQFzYa2ROsGFSr69W0ArXIAGJqxl/aFECOVPD2kbkYPm0U/EHxFKgclK3UA9WQg5A==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
 
-  '@octokit/auth-app@8.3.0':
-    resolution: {integrity: sha512-/UaKmJCsOc5XBZwhnFiGNdLH/FkDF8lYtBn1QlKxtX7IpgaRB/XOXjixFtERAknyUZHxp3oDuoiG0En4VptJSg==}
-    engines: {node: '>= 20'}
-
-  '@octokit/auth-oauth-app@9.0.4':
-    resolution: {integrity: sha512-Pe3du5LrC6dlv10b0RbarBlJtIT1Urq8BFoQklK8WmBw8YKnGgrANn7cQmHiA1v8AVihgi7YutV8MncP57I4og==}
-    engines: {node: '>= 20'}
-
-  '@octokit/auth-oauth-device@8.0.4':
-    resolution: {integrity: sha512-M/+34rmkxMvUnnTo/uqNeVRCXJoJ+5N34eNTbL1KMtIyJpedCTsu/iFL1cWdL+w5hQMlYt6xzXoyux2gn0OVnw==}
-    engines: {node: '>= 20'}
-
-  '@octokit/auth-oauth-user@6.0.3':
-    resolution: {integrity: sha512-t4OKUhrI5britmpRiSzPAz1TJPyUN/Hw1HEE3Hz/uElxcmnf/YCRSKtFRNc5gy4yJFTlXgk34H1lvxiotQJQvQ==}
-    engines: {node: '>= 20'}
-
   '@octokit/auth-token@6.0.0':
     resolution: {integrity: sha512-P4YJBPdPSpWTQ1NU4XYdvHvXJJDxM6YwpS0FZHRgP7YFkdVxsWcpWGy/NVqlAA7PcPCnMacXlRm1y2PFZRWL/w==}
     engines: {node: '>= 20'}
@@ -857,14 +855,6 @@ packages:
     resolution: {integrity: sha512-5s15CCiY8XXQ+FG+b1YQcl6Z2FA++nwAz/tg2VUrTmnMncP+2nnGUEYANImdnxsA2Fnq+Mbl7hDjUTw7cFAwcg==}
     engines: {node: '>= 20'}
 
-  '@octokit/oauth-authorization-url@8.0.0':
-    resolution: {integrity: sha512-7QoLPRh/ssEA/HuHBHdVdSgF8xNLz/Bc5m9fZkArJE5bb6NmVkDm3anKxXPmN1zh6b5WKZPRr3697xKT/yM3qQ==}
-    engines: {node: '>= 20'}
-
-  '@octokit/oauth-methods@6.0.3':
-    resolution: {integrity: sha512-t7MBs34Ja16BBZlOSAFslFh4wBMuofD83wVLG9zIuuEGMv/U12XAJ8ESOifgEcC1ptjhNA3sorLA9BCtVfgPuw==}
-    engines: {node: '>= 20'}
-
   '@octokit/openapi-types@27.0.0':
     resolution: {integrity: sha512-whrdktVs1h6gtR+09+QsNk2+FO+49j6ga1c55YZudfEG+oKJVvJLQi3zkOm5JjiUXAagWK2tI2kTGKJ2Ys7MGA==}
 
@@ -877,28 +867,12 @@ packages:
     peerDependencies:
       '@octokit/core': '>=6'
 
-  '@octokit/plugin-request-log@6.0.0':
-    resolution: {integrity: sha512-UkOzeEN3W91/eBq9sPZNQ7sUBvYCqYbrrD8gTbBuGtHEuycE4/awMXcYvx6sVYo7LypPhmQwwpUe4Yyu4QZN5Q==}
-    engines: {node: '>= 20'}
-    peerDependencies:
-      '@octokit/core': '>=6'
-
-  '@octokit/plugin-rest-endpoint-methods@17.0.0':
-    resolution: {integrity: sha512-B5yCyIlOJFPqUUeiD0cnBJwWJO8lkJs5d8+ze9QDP6SvfiXSz1BF+91+0MeI1d2yxgOhU/O+CvtiZ9jSkHhFAw==}
-    engines: {node: '>= 20'}
-    peerDependencies:
-      '@octokit/core': '>=6'
-
   '@octokit/request-error@7.1.1':
     resolution: {integrity: sha512-+eaY7G2VVpSf2pc5Gn1+mph837V/d/TYTJAgWL9Tb0ogGYcpN3IlAVFgjL+Vv93F/sevrxkvsYCedtpLdcFLzA==}
     engines: {node: '>= 20'}
 
   '@octokit/request@10.0.13':
     resolution: {integrity: sha512-v2269YxL9Yf+x3d+gRI63FP0vFQEiWgLyBzxe/Y+0yFDg2B/Tzf5dhh9VNfccVAQnfcfwQWyk/y6Bn7rUXXs7A==}
-    engines: {node: '>= 20'}
-
-  '@octokit/rest@22.0.1':
-    resolution: {integrity: sha512-Jzbhzl3CEexhnivb1iQ0KJ7s5vvjMWcmRtq5aUsKmKDrRW6z3r84ngmiFKFvpZjpiU/9/S6ITPFRpn5s/3uQJw==}
     engines: {node: '>= 20'}
 
   '@octokit/types@16.0.0':
@@ -1134,13 +1108,6 @@ packages:
     peerDependencies:
       '@types/node': ^26.1.0
       typescript: ^7.0.0
-
-  '@savvy-web/github-action-effects@3.1.0':
-    resolution: {integrity: sha512-lxeq7mMyFLUlXjV+SgxWS0nV+CaSbSP+FQ44Tabu0z8ZiiahKQMlCco9DXPHXQZDCX3ovLcLe65RBRWL6OolEw==}
-    deprecated: 'This is now @effected/github-actions: https://www.npmjs.com/package/@effected/github-actions'
-    peerDependencies:
-      '@effect/platform-node': 4.0.0-beta.101
-      effect: 4.0.0-beta.101
 
   '@savvy-web/mcp@2.0.18':
     resolution: {integrity: sha512-ZELvBuLa2Z+1wsVDjJGs9g8+m7FryDgnJGQns53as85Ht2Rk2nUlCXGa4Kkw0P85uxCu3FpUJC9c8ml5+jnbLw==}
@@ -2070,8 +2037,8 @@ packages:
     resolution: {integrity: sha512-T2UbfbBEF32wiepXIsMlTW9+dDYC6wMh/t/vYA4tuOMKqWz/n3vr1NFSxQiyP+zk2mXsoMA/i/7qV6LKut1t1A==}
     engines: {node: '>= 0.4'}
 
-  hono@4.12.34:
-    resolution: {integrity: sha512-GqXJqY/xJkJmuloTrnV1ZEXG3fqte+VjkUqoRNZXcrUidiUOP4fMSIHHY4tsqZBK++kVyWmt/AAfSUuy57/eSA==}
+  hono@4.13.0:
+    resolution: {integrity: sha512-jhunvfHWxd7J5EFfSgH4xsYJzSe/lfqbUCxiyyeaQasUsXeEHXtzVid+7EOGByc5JnFa23SSFL3Y2RV/z1T+eQ==}
     engines: {node: '>=16.9.0'}
 
   html-escaper@2.0.2:
@@ -3060,10 +3027,6 @@ packages:
     resolution: {integrity: sha512-65P7iz6X5yEr1cwcgvQxbbIw7Uk3gOy5dIdtZ4rDveLqhrdJP+Li/Hx6tyK0NEb+2GCyneCMJiGqrADCSNk8sQ==}
     engines: {node: '>=8.0'}
 
-  toad-cache@3.7.4:
-    resolution: {integrity: sha512-m1TdR/rvT7kgGJZhspNtXdsdYk0fddFpJJFlG5s+UkPFo6lkLoZ3YLOaovPYjq1R75NP5JfeTlSHaOsE09peCg==}
-    engines: {node: '>=20'}
-
   toidentifier@1.0.1:
     resolution: {integrity: sha512-o5sSPKEkg/DIQNmH43V0/uerLrpzVedkUh8tGNvaeXpfpuwjKenlSox/2O/BTlZUtEe+JG7s5YhEz608PlAHRA==}
     engines: {node: '>=0.6'}
@@ -3275,8 +3238,8 @@ packages:
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
-  ws@8.21.1:
-    resolution: {integrity: sha512-+0NTnW77fFN/DjQi6k/Sq/Yvk4Sgajw7urW8V+asjXnRgDs9gyGkdb7EzgfhA4goXsRIZKE28fzIXBHEzhuiWw==}
+  ws@8.21.2:
+    resolution: {integrity: sha512-54dMVAo4WIe6SKy3vBgN+9bJZqqQ8IMRevAkOLQALhi49qkkQDQfWdAZ8KQlXiEabw88ARXXdUrlvtbKQX+aKw==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -3810,23 +3773,18 @@ snapshots:
 
   '@conventional-changelog/template@1.2.1': {}
 
-  '@cyclonedx/cyclonedx-library@10.1.0(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)':
-    optionalDependencies:
-      ajv: 8.20.0
-      ajv-formats: 3.0.1(ajv@8.20.0)
-
-  '@effect/platform-node-shared@4.0.0-beta.102(effect@4.0.0-beta.101)':
+  '@effect/platform-node-shared@4.0.0-beta.103(effect@4.0.0-beta.101)':
     dependencies:
       '@types/ws': 8.18.1
       effect: 4.0.0-beta.101
-      ws: 8.21.1
+      ws: 8.21.2
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
 
   '@effect/platform-node@4.0.0-beta.101(effect@4.0.0-beta.101)(ioredis@5.11.1(supports-color@7.2.0))':
     dependencies:
-      '@effect/platform-node-shared': 4.0.0-beta.102(effect@4.0.0-beta.101)
+      '@effect/platform-node-shared': 4.0.0-beta.103(effect@4.0.0-beta.101)
       effect: 4.0.0-beta.101
       ioredis: 5.11.1(supports-color@7.2.0)
       mime: 4.1.0
@@ -3860,6 +3818,34 @@ snapshots:
     dependencies:
       effect: 4.0.0-beta.101
 
+  '@effected/github-actions@0.5.0(@effect/platform-node@4.0.0-beta.101(effect@4.0.0-beta.101)(ioredis@5.11.1(supports-color@7.2.0)))(@effected/jsonc@0.5.2(effect@4.0.0-beta.101))(@effected/semver@0.3.1(effect@4.0.0-beta.101))(@effected/toml@0.3.2(effect@4.0.0-beta.101))(@effected/yaml@0.6.1(effect@4.0.0-beta.101))(effect@4.0.0-beta.101)(supports-color@7.2.0)':
+    dependencies:
+      '@azure/storage-blob': 12.33.0(supports-color@7.2.0)
+      '@effect/platform-node': 4.0.0-beta.101(effect@4.0.0-beta.101)(ioredis@5.11.1(supports-color@7.2.0))
+      '@effected/github': 0.2.2(effect@4.0.0-beta.101)
+      '@effected/glob': 0.2.2(effect@4.0.0-beta.101)
+      '@effected/markdown': 0.4.2(@effected/jsonc@0.5.2(effect@4.0.0-beta.101))(@effected/toml@0.3.2(effect@4.0.0-beta.101))(@effected/yaml@0.6.1(effect@4.0.0-beta.101))(effect@4.0.0-beta.101)
+      '@effected/npm': 0.8.1(@effected/semver@0.3.1(effect@4.0.0-beta.101))(effect@4.0.0-beta.101)
+      '@effected/sbom': 0.2.2(effect@4.0.0-beta.101)(supports-color@7.2.0)
+      '@effected/templates': 0.1.1(effect@4.0.0-beta.101)
+      effect: 4.0.0-beta.101
+    transitivePeerDependencies:
+      - '@effected/jsonc'
+      - '@effected/semver'
+      - '@effected/toml'
+      - '@effected/yaml'
+      - kerberos
+      - supports-color
+
+  '@effected/github@0.2.2(effect@4.0.0-beta.101)':
+    dependencies:
+      '@effected/semver': 0.3.1(effect@4.0.0-beta.101)
+      '@octokit/core': 7.0.7
+      '@octokit/plugin-paginate-rest': 14.0.0(@octokit/core@7.0.7)
+      '@octokit/types': 16.0.0
+      effect: 4.0.0-beta.101
+      universal-github-app-jwt: 2.2.2
+
   '@effected/glob@0.2.2(effect@4.0.0-beta.101)':
     dependencies:
       effect: 4.0.0-beta.101
@@ -3876,6 +3862,14 @@ snapshots:
       '@effected/yaml': 0.6.1(effect@4.0.0-beta.101)
       effect: 4.0.0-beta.101
 
+  '@effected/markdown@0.4.2(@effected/jsonc@0.5.2(effect@4.0.0-beta.101))(@effected/toml@0.3.2(effect@4.0.0-beta.101))(@effected/yaml@0.6.1(effect@4.0.0-beta.101))(effect@4.0.0-beta.101)':
+    dependencies:
+      effect: 4.0.0-beta.101
+    optionalDependencies:
+      '@effected/jsonc': 0.5.2(effect@4.0.0-beta.101)
+      '@effected/toml': 0.3.2(effect@4.0.0-beta.101)
+      '@effected/yaml': 0.6.1(effect@4.0.0-beta.101)
+
   '@effected/npm@0.8.1(@effected/semver@0.3.1(effect@4.0.0-beta.101))(effect@4.0.0-beta.101)':
     dependencies:
       '@effected/commands': 0.2.1(effect@4.0.0-beta.101)
@@ -3889,8 +3883,21 @@ snapshots:
       '@effected/spdx': 0.1.2(effect@4.0.0-beta.101)
       effect: 4.0.0-beta.101
 
-  '@effected/semver@0.2.1(effect@4.0.0-beta.101)':
+  '@effected/sbom@0.2.2(effect@4.0.0-beta.101)(supports-color@7.2.0)':
     dependencies:
+      '@effected/package-json': 0.7.2(effect@4.0.0-beta.101)
+      '@effected/spdx': 0.1.2(effect@4.0.0-beta.101)
+      '@sigstore/bundle': 5.0.0
+      '@sigstore/sign': 5.0.0(supports-color@7.2.0)
+      effect: 4.0.0-beta.101
+    transitivePeerDependencies:
+      - kerberos
+      - supports-color
+
+  '@effected/schemastore@0.2.0(effect@4.0.0-beta.101)':
+    dependencies:
+      '@effected/semver': 0.3.1(effect@4.0.0-beta.101)
+      ajv: 8.20.0
       effect: 4.0.0-beta.101
 
   '@effected/semver@0.3.1(effect@4.0.0-beta.101)':
@@ -4039,9 +4046,9 @@ snapshots:
 
   '@gar/promise-retry@1.0.3': {}
 
-  '@hono/node-server@2.0.12(hono@4.12.34)':
+  '@hono/node-server@2.0.12(hono@4.13.0)':
     dependencies:
-      hono: 4.12.34
+      hono: 4.13.0
 
   '@ioredis/commands@1.10.0': {}
 
@@ -4083,7 +4090,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.30.0(supports-color@7.2.0)(zod@4.4.3)':
     dependencies:
-      '@hono/node-server': 2.0.12(hono@4.12.34)
+      '@hono/node-server': 2.0.12(hono@4.13.0)
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
       content-type: 1.0.5
@@ -4093,7 +4100,7 @@ snapshots:
       eventsource-parser: 3.1.0
       express: 5.2.1(supports-color@7.2.0)
       express-rate-limit: 8.6.1(express@5.2.1(supports-color@7.2.0))(supports-color@7.2.0)
-      hono: 4.12.34
+      hono: 4.13.0
       jose: 6.2.8
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
@@ -4159,40 +4166,6 @@ snapshots:
 
   '@npmcli/redact@5.0.0': {}
 
-  '@octokit/auth-app@8.3.0':
-    dependencies:
-      '@octokit/auth-oauth-app': 9.0.4
-      '@octokit/auth-oauth-user': 6.0.3
-      '@octokit/request': 10.0.13
-      '@octokit/request-error': 7.1.1
-      '@octokit/types': 17.0.0
-      toad-cache: 3.7.4
-      universal-github-app-jwt: 2.2.2
-      universal-user-agent: 7.0.3
-
-  '@octokit/auth-oauth-app@9.0.4':
-    dependencies:
-      '@octokit/auth-oauth-device': 8.0.4
-      '@octokit/auth-oauth-user': 6.0.3
-      '@octokit/request': 10.0.13
-      '@octokit/types': 17.0.0
-      universal-user-agent: 7.0.3
-
-  '@octokit/auth-oauth-device@8.0.4':
-    dependencies:
-      '@octokit/oauth-methods': 6.0.3
-      '@octokit/request': 10.0.13
-      '@octokit/types': 17.0.0
-      universal-user-agent: 7.0.3
-
-  '@octokit/auth-oauth-user@6.0.3':
-    dependencies:
-      '@octokit/auth-oauth-device': 8.0.4
-      '@octokit/oauth-methods': 6.0.3
-      '@octokit/request': 10.0.13
-      '@octokit/types': 17.0.0
-      universal-user-agent: 7.0.3
-
   '@octokit/auth-token@6.0.0': {}
 
   '@octokit/core@7.0.7':
@@ -4216,29 +4189,11 @@ snapshots:
       '@octokit/types': 17.0.0
       universal-user-agent: 7.0.3
 
-  '@octokit/oauth-authorization-url@8.0.0': {}
-
-  '@octokit/oauth-methods@6.0.3':
-    dependencies:
-      '@octokit/oauth-authorization-url': 8.0.0
-      '@octokit/request': 10.0.13
-      '@octokit/request-error': 7.1.1
-      '@octokit/types': 17.0.0
-
   '@octokit/openapi-types@27.0.0': {}
 
   '@octokit/openapi-types@28.0.0': {}
 
   '@octokit/plugin-paginate-rest@14.0.0(@octokit/core@7.0.7)':
-    dependencies:
-      '@octokit/core': 7.0.7
-      '@octokit/types': 16.0.0
-
-  '@octokit/plugin-request-log@6.0.0(@octokit/core@7.0.7)':
-    dependencies:
-      '@octokit/core': 7.0.7
-
-  '@octokit/plugin-rest-endpoint-methods@17.0.0(@octokit/core@7.0.7)':
     dependencies:
       '@octokit/core': 7.0.7
       '@octokit/types': 16.0.0
@@ -4255,13 +4210,6 @@ snapshots:
       content-type: 2.0.0
       json-with-bigint: 3.5.10
       universal-user-agent: 7.0.3
-
-  '@octokit/rest@22.0.1':
-    dependencies:
-      '@octokit/core': 7.0.7
-      '@octokit/plugin-paginate-rest': 14.0.0(@octokit/core@7.0.7)
-      '@octokit/plugin-request-log': 6.0.0(@octokit/core@7.0.7)
-      '@octokit/plugin-rest-endpoint-methods': 17.0.0(@octokit/core@7.0.7)
 
   '@octokit/types@16.0.0':
     dependencies:
@@ -4444,30 +4392,6 @@ snapshots:
       - core-js
       - ioredis
       - utf-8-validate
-
-  '@savvy-web/github-action-effects@3.1.0(@effect/platform-node@4.0.0-beta.101(effect@4.0.0-beta.101)(ioredis@5.11.1(supports-color@7.2.0)))(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(effect@4.0.0-beta.101)(supports-color@7.2.0)':
-    dependencies:
-      '@azure/storage-blob': 12.33.0(supports-color@7.2.0)
-      '@cyclonedx/cyclonedx-library': 10.1.0(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)
-      '@effect/platform-node': 4.0.0-beta.101(effect@4.0.0-beta.101)(ioredis@5.11.1(supports-color@7.2.0))
-      '@effected/jsonc': 0.5.2(effect@4.0.0-beta.101)
-      '@effected/semver': 0.2.1(effect@4.0.0-beta.101)
-      '@effected/yaml': 0.6.1(effect@4.0.0-beta.101)
-      '@octokit/auth-app': 8.3.0
-      '@octokit/rest': 22.0.1
-      '@sigstore/bundle': 5.0.0
-      '@sigstore/sign': 5.0.0(supports-color@7.2.0)
-      effect: 4.0.0-beta.101
-    transitivePeerDependencies:
-      - ajv
-      - ajv-formats
-      - ajv-formats-draft2019
-      - kerberos
-      - libxmljs2
-      - packageurl-js
-      - spdx-expression-parse
-      - supports-color
-      - xmlbuilder2
 
   '@savvy-web/mcp@2.0.18(@effected/jsonc@0.5.2(effect@4.0.0-beta.101))(ioredis@5.11.1(supports-color@7.2.0))(supports-color@7.2.0)':
     dependencies:
@@ -5475,7 +5399,7 @@ snapshots:
     dependencies:
       function-bind: 1.1.2
 
-  hono@4.12.34: {}
+  hono@4.13.0: {}
 
   html-escaper@2.0.2: {}
 
@@ -5576,7 +5500,7 @@ snapshots:
       type-fest: 5.8.0
       widest-line: 6.0.0
       wrap-ansi: 10.0.0
-      ws: 8.21.1
+      ws: 8.21.2
       yoga-layout: 3.2.1
     transitivePeerDependencies:
       - bufferutil
@@ -6649,8 +6573,6 @@ snapshots:
     dependencies:
       is-number: 7.0.0
 
-  toad-cache@3.7.4: {}
-
   toidentifier@1.0.1: {}
 
   toml@4.3.0: {}
@@ -6854,7 +6776,7 @@ snapshots:
 
   wrappy@1.0.2: {}
 
-  ws@8.21.1: {}
+  ws@8.21.2: {}
 
   xml-naming@0.3.0: {}
 

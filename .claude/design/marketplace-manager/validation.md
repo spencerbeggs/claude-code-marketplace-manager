@@ -3,8 +3,8 @@ status: current
 module: marketplace-manager
 category: validation
 created: 2026-07-23
-updated: 2026-07-24
-last-synced: 2026-07-24
+updated: 2026-08-04
+last-synced: 2026-08-04
 completeness: 92
 related:
   - ./architecture.md

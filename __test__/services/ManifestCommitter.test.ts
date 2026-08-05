@@ -1,13 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
-import {
-	GitBranch,
-	GitBranchError,
-	GitBranchTest,
-	GitCommitTest,
-	GitHubClientTest,
-	PullRequestTest,
-} from "@savvy-web/github-action-effects/testing";
-import { Effect, Layer } from "effect";
+import type { PullRequestInfo as PullRequestInfoType } from "@effected/github";
+import { GitBranch, GitCommit, PullRequest, PullRequestInfo, Repo, RepoRef } from "@effected/github";
+import { Effect, Layer, Option } from "effect";
 import { land } from "../../src/services/ManifestCommitter.js";
 import { MANIFEST_PATH } from "../../src/services/ManifestEditor.js";
 import { validateEdit } from "../../src/services/ManifestValidator.js";
@@ -43,255 +37,325 @@ const params = {
 	base: "main",
 	branch: "chore/repin-plugins",
 	change,
-	commitMessage: "ai(marketplace): repinned p@acme",
-	prTitle: "ai(marketplace): repinned p@acme",
-	prBody: "- pinned p@acme to abc",
+	commitMessage: "ai(marketplace): repinned p1@acme",
+	prTitle: "ai(marketplace): repinned p1@acme",
+	prBody: "- pinned p1@acme to 1111111",
 	autoMerge: "rebase" as const,
+};
+
+const repoLayer = Layer.succeed(Repo, RepoRef.make({ owner: "test-owner", repo: "test-repo" }));
+
+/**
+ * A recording harness over the kit's `layerTest` doubles.
+ *
+ * `layerTest(overrides)` dies naming any member the code under test touches but
+ * the test did not stub, so this arranges exactly the members `land` is
+ * expected to use — which makes an unexpected extra call a loud failure rather
+ * than a silently-served default. `branches` seeds the refs that already exist.
+ */
+const harness = (branches: Record<string, string> = {}) => {
+	const refs = new Map<string, string>(Object.entries(branches));
+	const calls: Array<string> = [];
+	const trees: Array<{ readonly baseTree: string | undefined; readonly paths: ReadonlyArray<string> }> = [];
+	const commits: Array<{ readonly message: string; readonly tree: string; readonly parents: ReadonlyArray<string> }> =
+		[];
+	const contents: Array<string> = [];
+	/**
+	 * Every key the caller actually passed to `createCommit`, before any
+	 * destructuring. Recording the request rather than a rebuilt object is what
+	 * lets B1 fail if a caller ever adds `author`, `committer` or `signature`.
+	 */
+	const commitRequestKeys: Array<ReadonlyArray<string>> = [];
+	const commitFileCalls: Array<{
+		readonly branch: string;
+		readonly message: string;
+		readonly paths: ReadonlyArray<string>;
+	}> = [];
+	const upserts: Array<{ readonly name: string; readonly sha: string }> = [];
+	const prUpserts: Array<{
+		readonly title: string;
+		readonly head: string;
+		readonly base: string;
+		readonly body?: string | undefined;
+		readonly draft?: boolean | undefined;
+	}> = [];
+	const autoMerges: Array<string> = [];
+
+	const info: PullRequestInfoType = PullRequestInfo.make({
+		number: 42,
+		nodeId: "PR_node",
+		url: "https://github.com/test-owner/test-repo/pull/42",
+		title: params.prTitle,
+		state: "open",
+		head: params.branch,
+		headSha: "head-sha",
+		base: params.base,
+		baseSha: "base-sha",
+		draft: false,
+		merged: false,
+		mergedAt: Option.none(),
+	});
+
+	const layer = Layer.mergeAll(
+		GitCommit.layerTest({
+			get: (sha) => {
+				calls.push("commit.get");
+				return Effect.succeed({ sha, treeSha: `tree-of-${sha}`, parents: [] });
+			},
+			createTree: ({ changes, baseTree }) => {
+				calls.push("commit.createTree");
+				trees.push({ baseTree, paths: changes.map((c) => c.path) });
+				for (const c of changes) {
+					if (c._tag === "FileContent") {
+						contents.push(c.content);
+					}
+				}
+				return Effect.succeed("new-tree");
+			},
+			createCommit: (request) => {
+				calls.push("commit.createCommit");
+				// Record the request's own keys BEFORE destructuring — a rebuilt
+				// object can only ever have the keys this harness names.
+				commitRequestKeys.push(Object.keys(request).sort());
+				const { message, tree, parents } = request;
+				commits.push({ message, tree, parents });
+				return Effect.succeed("new-commit-sha");
+			},
+			commitFiles: ({ branch, message, changes }) => {
+				calls.push("commit.commitFiles");
+				commitFileCalls.push({ branch, message, paths: changes.map((c) => c.path) });
+				for (const c of changes) {
+					if (c._tag === "FileContent") {
+						contents.push(c.content);
+					}
+				}
+				return Effect.succeed("direct-commit-sha");
+			},
+		}),
+		GitBranch.layerTest({
+			sha: (name) => {
+				calls.push("branch.sha");
+				return Effect.succeed(refs.get(name) ?? "base-sha");
+			},
+			upsert: (name, sha) => {
+				calls.push("branch.upsert");
+				upserts.push({ name, sha });
+				const existed = refs.has(name);
+				refs.set(name, sha);
+				return Effect.succeed(existed ? "reset" : "created");
+			},
+		}),
+		PullRequest.layerTest({
+			upsert: (input) => {
+				calls.push("pulls.upsert");
+				prUpserts.push(input);
+				return Effect.succeed({ pullRequest: info, created: true });
+			},
+			setAutoMerge: (_pr, method) => {
+				calls.push("pulls.setAutoMerge");
+				autoMerges.push(method);
+				return Effect.void;
+			},
+		}),
+		repoLayer,
+	);
+
+	return {
+		layer,
+		refs,
+		calls,
+		trees,
+		commits,
+		commitRequestKeys,
+		contents,
+		commitFileCalls,
+		upserts,
+		prUpserts,
+		autoMerges,
+	};
 };
 
 describe("land", () => {
 	it.effect("commit mode commits directly to base and opens no PR", () =>
 		Effect.gen(function* () {
-			const commit = GitCommitTest.empty();
-			const branch = GitBranchTest.empty();
-			const pr = PullRequestTest.empty();
-			const layer = Layer.mergeAll(
-				GitCommitTest.layer(commit),
-				GitBranchTest.layer(branch),
-				PullRequestTest.layer(pr),
-				GitHubClientTest.empty(),
-			);
-			const result = yield* land({ mode: "commit", ...params }).pipe(Effect.provide(layer));
-			assert.deepStrictEqual(
-				commit.refUpdates.map((r) => r.ref),
-				["main"],
-			);
-			assert.strictEqual(commit.commits[0]?.message, params.commitMessage);
-			// The validated change's text is what actually reaches the tree, at the
-			// manifest path — not the original, and not some other field.
-			assert.deepStrictEqual(commit.trees[0]?.entries, [{ path: MANIFEST_PATH, mode: "100644", content: EDITED }]);
-			assert.strictEqual(result.commitSha, commit.commits[0]?.sha);
-			assert.strictEqual(result.commitUrl, `https://github.com/test-owner/test-repo/commit/${result.commitSha}`);
+			const h = harness();
+			const result = yield* land({ mode: "commit", ...params }).pipe(Effect.provide(h.layer));
+
+			assert.deepStrictEqual(h.commitFileCalls, [
+				{ branch: "main", message: params.commitMessage, paths: [MANIFEST_PATH] },
+			]);
+			// The validated change's text is what reaches the tree, at the manifest
+			// path — not the original, and not some other field.
+			assert.deepStrictEqual(h.contents, [EDITED]);
+			assert.strictEqual(result.commitSha, "direct-commit-sha");
+			assert.strictEqual(result.commitUrl, "https://github.com/test-owner/test-repo/commit/direct-commit-sha");
 			assert.isNull(result.prNumber);
-			assert.lengthOf(pr.prs, 0);
+			assert.isNull(result.prUrl);
+			// No branch or PR machinery is touched at all in commit mode.
+			assert.deepStrictEqual(h.calls, ["commit.commitFiles"]);
 		}),
 	);
 
-	it.effect("pr mode creates the branch, commits to it, and opens a PR", () =>
+	it.effect("commit mode writes the manifest at the expected path", () =>
 		Effect.gen(function* () {
-			const commit = GitCommitTest.empty();
-			const branch = GitBranchTest.empty();
-			branch.branches.set("main", "base-sha");
-			const pr = PullRequestTest.empty();
-			const layer = Layer.mergeAll(
-				GitCommitTest.layer(commit),
-				GitBranchTest.layer(branch),
-				PullRequestTest.layer(pr),
-				GitHubClientTest.empty(),
-			);
-			const result = yield* land({ mode: "pr", ...params }).pipe(Effect.provide(layer));
-			// The branch is created from base's sha, not an arbitrary/incorrect ref.
-			assert.strictEqual(branch.branches.get("chore/repin-plugins"), "base-sha");
-			// Exactly one commit is written, to the head branch.
-			assert.lengthOf(commit.commits, 1);
-			assert.deepStrictEqual(
-				commit.refUpdates.map((r) => r.ref),
-				["chore/repin-plugins"],
-			);
-			assert.strictEqual(result.commitUrl, `https://github.com/test-owner/test-repo/commit/${result.commitSha}`);
-			assert.isNotNull(result.prNumber);
-			assert.lengthOf(pr.prs, 1);
-			// The recorded PR uses the expected base, head, title, and body — not
-			// just "a PR exists somewhere".
-			assert.strictEqual(pr.prs[0]?.base, params.base);
-			assert.strictEqual(pr.prs[0]?.head, params.branch);
-			assert.strictEqual(pr.prs[0]?.title, params.prTitle);
-			assert.strictEqual(pr.prs[0]?.body, params.prBody);
-			assert.strictEqual(pr.prs[0]?.autoMerge, "rebase");
+			const h = harness();
+			yield* land({ mode: "commit", ...params }).pipe(Effect.provide(h.layer));
+			assert.strictEqual(MANIFEST_PATH, ".claude-plugin/marketplace.json");
+			assert.deepStrictEqual(h.contents, [EDITED]);
+			// The path the caller actually passed, not just the constant — commit
+			// mode writes through `commitFiles`, which takes its own changes list.
+			assert.deepStrictEqual(h.commitFileCalls[0]?.paths, [MANIFEST_PATH]);
 		}),
 	);
 
-	it.effect("pr mode resets an existing branch onto base before committing", () =>
+	it.effect("pr mode builds the commit against base, then moves the ref once", () =>
 		Effect.gen(function* () {
-			const commit = GitCommitTest.empty();
-			const branch = GitBranchTest.empty();
+			const h = harness({ main: "base-sha" });
+			const result = yield* land({ mode: "pr", ...params }).pipe(Effect.provide(h.layer));
+
+			// Ruling D-2: the commit is fully built BEFORE the head ref moves, so the
+			// branch never rests on the bare base head. Reversing these two — the
+			// obvious `upsert(branch, baseSha)` then `commitFiles` spelling — is what
+			// makes an open PR briefly empty and gets it auto-closed by GitHub.
+			assert.deepStrictEqual(h.calls, [
+				"branch.sha",
+				"commit.get",
+				"commit.createTree",
+				"commit.createCommit",
+				"branch.upsert",
+				"pulls.upsert",
+				"pulls.setAutoMerge",
+			]);
+			// Exactly one ref move, and it lands on the finished commit — never on
+			// the base sha.
+			assert.deepStrictEqual(h.upserts, [{ name: params.branch, sha: "new-commit-sha" }]);
+			assert.notStrictEqual(h.upserts[0]?.sha, "base-sha");
+			// The commit is rooted at base's current tip.
+			assert.deepStrictEqual(h.commits, [{ message: params.commitMessage, tree: "new-tree", parents: ["base-sha"] }]);
+			assert.deepStrictEqual(h.trees, [{ baseTree: "tree-of-base-sha", paths: [MANIFEST_PATH] }]);
+			assert.deepStrictEqual(h.contents, [EDITED]);
+
+			assert.strictEqual(result.commitSha, "new-commit-sha");
+			assert.strictEqual(result.commitUrl, "https://github.com/test-owner/test-repo/commit/new-commit-sha");
+			assert.strictEqual(result.prNumber, 42);
+			assert.strictEqual(result.prUrl, "https://github.com/test-owner/test-repo/pull/42");
+		}),
+	);
+
+	it.effect("pr mode opens the PR with the expected head, base, title and body", () =>
+		Effect.gen(function* () {
+			const h = harness({ main: "base-sha" });
+			yield* land({ mode: "pr", ...params }).pipe(Effect.provide(h.layer));
+			assert.deepStrictEqual(h.prUpserts, [
+				{ title: params.prTitle, head: params.branch, base: params.base, body: params.prBody },
+			]);
+		}),
+	);
+
+	it.effect("passes the requested auto-merge method through", () =>
+		Effect.gen(function* () {
+			const h = harness({ main: "base-sha" });
+			yield* land({ mode: "pr", ...params, autoMerge: "squash" }).pipe(Effect.provide(h.layer));
+			// A non-default method on purpose: asserting "rebase" would pass against
+			// an implementation that ignored the parameter entirely.
+			assert.deepStrictEqual(h.autoMerges, ["squash"]);
+		}),
+	);
+
+	// ---------------------------------------------------------------------
+	// Invariant B5 — the pr-mode head branch is force-reset onto base every
+	// run. Under ruling D-2 the reset is implicit inside the single `upsert`,
+	// which is exactly the shape in which an invariant quietly loses its test
+	// coverage during a refactor. These two pin it directly.
+	// ---------------------------------------------------------------------
+
+	it.effect("B5: a stale head branch is re-rooted at base's CURRENT tip, not stacked onto", () =>
+		Effect.gen(function* () {
 			// A long-lived head branch left over from an earlier run, now behind a
 			// base that has moved on — the drift that made spencerbeggs/bot#12
-			// unmergeable (issue #3).
-			branch.branches.set("main", "base-sha-2");
-			branch.branches.set("chore/repin-plugins", "drifted-sha");
-			const pr = PullRequestTest.empty();
-			const layer = Layer.mergeAll(
-				GitCommitTest.layer(commit),
-				GitBranchTest.layer(branch),
-				PullRequestTest.layer(pr),
-				GitHubClientTest.empty(),
-			);
-			const result = yield* land({ mode: "pr", ...params }).pipe(Effect.provide(layer));
-			// The stale tip is discarded: the branch is re-rooted at base's CURRENT
-			// sha rather than having a commit stacked onto `drifted-sha`.
-			assert.strictEqual(branch.branches.get("chore/repin-plugins"), "base-sha-2");
-			// Still exactly one commit, still to the head branch.
-			assert.lengthOf(commit.commits, 1);
-			assert.deepStrictEqual(
-				commit.refUpdates.map((r) => r.ref),
-				["chore/repin-plugins"],
-			);
-			assert.isNotNull(result.prNumber);
-			assert.lengthOf(pr.prs, 1);
+			// unmergeable.
+			const h = harness({ main: "base-sha-2", "chore/repin-plugins": "drifted-sha" });
+			yield* land({ mode: "pr", ...params }).pipe(Effect.provide(h.layer));
+
+			// The new commit's parent is base's current tip — NOT the drifted tip.
+			// If the implementation regressed to stacking onto the existing branch,
+			// parents would be ["drifted-sha"] and this fails.
+			assert.deepStrictEqual(h.commits[0]?.parents, ["base-sha-2"]);
+			assert.notInclude(h.commits[0]?.parents ?? [], "drifted-sha");
+			// The stale tip is discarded outright.
+			assert.strictEqual(h.refs.get("chore/repin-plugins"), "new-commit-sha");
+			// Still exactly one commit and one ref move.
+			assert.lengthOf(h.commits, 1);
+			assert.lengthOf(h.upserts, 1);
 		}),
 	);
 
-	it.effect("re-landing against the same PR re-roots the branch at the current base", () =>
+	it.effect("B5: a second run discards the first run's commit rather than stacking on it", () =>
 		Effect.gen(function* () {
-			const commit = GitCommitTest.empty();
-			const branch = GitBranchTest.empty();
-			branch.branches.set("main", "base-sha-1");
-			const pr = PullRequestTest.empty();
-			const layer = Layer.mergeAll(
-				GitCommitTest.layer(commit),
-				GitBranchTest.layer(branch),
-				PullRequestTest.layer(pr),
-				GitHubClientTest.empty(),
-			);
+			// Run one against a fresh repo.
+			const first = harness({ main: "base-sha" });
+			yield* land({ mode: "pr", ...params }).pipe(Effect.provide(first.layer));
+			assert.strictEqual(first.refs.get("chore/repin-plugins"), "new-commit-sha");
 
-			yield* land({ mode: "pr", ...params }).pipe(Effect.provide(layer));
-			assert.strictEqual(branch.branches.get("chore/repin-plugins"), "base-sha-1");
+			// Run two, with the branch now carrying run one's commit and base
+			// unchanged. The head branch must be re-rooted at base, so the second
+			// commit's parent is base — never run one's commit.
+			const second = harness({ main: "base-sha", "chore/repin-plugins": "new-commit-sha" });
+			yield* land({ mode: "pr", ...params }).pipe(Effect.provide(second.layer));
 
-			// Base moves on (another PR merged), then the action runs again against
-			// the same fixed branch name. The second run must follow base rather
-			// than append to the first run's commit.
-			branch.branches.set("main", "base-sha-2");
-			yield* land({ mode: "pr", ...params }).pipe(Effect.provide(layer));
-			assert.strictEqual(branch.branches.get("chore/repin-plugins"), "base-sha-2");
-			// One commit per run — but each rooted at base, not stacked.
-			assert.lengthOf(commit.commits, 2);
-			// And still a single PR for the head→base pair.
-			assert.lengthOf(pr.prs, 1);
+			assert.deepStrictEqual(second.commits[0]?.parents, ["base-sha"]);
+			assert.notInclude(second.commits[0]?.parents ?? [], "new-commit-sha");
+			// One commit per run — the branch is never a growing stack.
+			assert.lengthOf(second.commits, 1);
 		}),
 	);
 
-	it.effect("passes the requested auto-merge method through to an existing PR too", () =>
+	it.effect("B1: never passes an author, committer or signature field", () =>
 		Effect.gen(function* () {
-			const commit = GitCommitTest.empty();
-			const branch = GitBranchTest.empty();
-			branch.branches.set("main", "base-sha");
-			const pr = PullRequestTest.empty();
-			const layer = Layer.mergeAll(
-				GitCommitTest.layer(commit),
-				GitBranchTest.layer(branch),
-				PullRequestTest.layer(pr),
-				GitHubClientTest.empty(),
-			);
-			yield* land({ mode: "pr", ...params, autoMerge: "squash" }).pipe(Effect.provide(layer));
-			assert.strictEqual(pr.prs[0]?.autoMerge, "squash");
-
-			// Re-land against the SAME open PR with a different method — getOrCreate's
-			// update path must re-apply auto-merge too, not just the create path.
-			yield* land({ mode: "pr", ...params, autoMerge: "merge" }).pipe(Effect.provide(layer));
-			assert.lengthOf(pr.prs, 1);
-			assert.strictEqual(pr.prs[0]?.autoMerge, "merge");
+			// Structural, and deliberately so: `GitCommit` exposes no author,
+			// committer or signature parameter, so the only thing a caller COULD
+			// pass is the message. This asserts the keys of the REQUEST as it was
+			// passed — asserting a rebuilt object instead would only ever prove
+			// what this harness names, and could never fail. If `land` or the kit
+			// grows such a field, this fails: re-read verified-commits.md then.
+			const h = harness({ main: "base-sha" });
+			yield* land({ mode: "pr", ...params }).pipe(Effect.provide(h.layer));
+			assert.deepStrictEqual(h.commitRequestKeys, [["message", "parents", "tree"]]);
+			// The bot identity reaches the commit only as message text.
+			assert.strictEqual(h.commits[0]?.message, params.commitMessage);
 		}),
 	);
 
-	it.effect("recovers when branch.create races with a concurrent creator", () =>
+	it.effect("pr mode refuses a head branch equal to its base, before writing anything", () =>
 		Effect.gen(function* () {
-			const commit = GitCommitTest.empty();
-			const pr = PullRequestTest.empty();
-
-			// Simulates another run creating the same branch between this run's
-			// `exists` check and its own `create` call: the first `exists` check
-			// (before create) sees it absent, `create` fails as if the ref already
-			// existed, and the re-check inside `land`'s recovery path must see it
-			// now present and proceed rather than propagating the error.
-			let concurrentlyCreated = false;
-			const resets: Array<{ name: string; sha: string }> = [];
-			const racyBranch: typeof GitBranch.Service = {
-				create: (name) =>
-					Effect.sync(() => {
-						concurrentlyCreated = true;
-					}).pipe(
-						Effect.flatMap(() =>
-							Effect.fail(
-								new GitBranchError({ branch: name, operation: "create", reason: "Reference already exists" }),
-							),
-						),
-					),
-				exists: (name) => Effect.succeed(name === params.base || concurrentlyCreated),
-				getSha: () => Effect.succeed("base-sha"),
-				delete: () => Effect.void,
-				reset: (name, sha) =>
-					Effect.sync(() => {
-						resets.push({ name, sha });
-					}),
-			};
-
-			const layer = Layer.mergeAll(
-				GitCommitTest.layer(commit),
-				Layer.succeed(GitBranch, racyBranch),
-				PullRequestTest.layer(pr),
-				GitHubClientTest.empty(),
+			// `branch` and `base` are independent inputs, so nothing structural
+			// stops them colliding. If they did and this guard were absent, the
+			// single `upsert` would move the BASE branch to the new commit — an
+			// unreviewed commit landing directly on it — and `PullRequest.upsert`
+			// would only fail afterwards, on a head equal to its base. The failure
+			// would arrive after the write it exists to prevent.
+			const h = harness({ main: "base-sha" });
+			const error = yield* land({ mode: "pr", ...params, base: "main", branch: "main" }).pipe(
+				Effect.provide(h.layer),
+				Effect.flip,
 			);
-			const result = yield* land({ mode: "pr", ...params }).pipe(Effect.provide(layer));
-			assert.isTrue(concurrentlyCreated);
-			// The recovery path doesn't just proceed on the winner's branch — it
-			// re-roots it at base, so a concurrent creator that rooted the branch
-			// somewhere else is corrected rather than inherited.
-			assert.deepStrictEqual(resets, [{ name: params.branch, sha: "base-sha" }]);
-			assert.isNotNull(result.prNumber);
-			assert.lengthOf(pr.prs, 1);
+
+			assert.strictEqual(error._tag, "InvalidInputError");
+			// Nothing was written, and nothing was even built: the guard runs
+			// before the commit, not merely before the ref move.
+			assert.deepStrictEqual(h.calls, []);
+			assert.deepStrictEqual(h.upserts, []);
+			assert.deepStrictEqual(h.commits, []);
 		}),
 	);
 
-	it.effect("still fails when branch.create fails for a reason other than a concurrent create", () =>
+	it.effect("commit mode is unaffected when base and branch coincide", () =>
 		Effect.gen(function* () {
-			const commit = GitCommitTest.empty();
-			const pr = PullRequestTest.empty();
-
-			// The branch genuinely never gets created (a real API failure, not a
-			// race) — `exists` stays false on the recovery re-check too, so the
-			// original error must still propagate rather than being swallowed.
-			const brokenBranch: typeof GitBranch.Service = {
-				create: (name) =>
-					Effect.fail(new GitBranchError({ branch: name, operation: "create", reason: "insufficient permissions" })),
-				exists: (name) => Effect.succeed(name === params.base),
-				getSha: () => Effect.succeed("base-sha"),
-				delete: () => Effect.void,
-				reset: () => Effect.void,
-			};
-
-			const layer = Layer.mergeAll(
-				GitCommitTest.layer(commit),
-				Layer.succeed(GitBranch, brokenBranch),
-				PullRequestTest.layer(pr),
-				GitHubClientTest.empty(),
-			);
-			const error = yield* Effect.flip(land({ mode: "pr", ...params }).pipe(Effect.provide(layer)));
-			assert.strictEqual(error._tag, "GitBranchError");
-			assert.lengthOf(pr.prs, 0);
+			// The guard is scoped to `pr`: commit mode writes to `base` by design
+			// and never reads `branch`, so an equal pair is meaningless, not fatal.
+			const h = harness();
+			yield* land({ mode: "commit", ...params, base: "main", branch: "main" }).pipe(Effect.provide(h.layer));
+			assert.deepStrictEqual(h.commitFileCalls[0]?.branch, "main");
 		}),
 	);
-});
-
-describe("land type boundary", () => {
-	it("rejects unvalidated and byte-stable input at compile time", () => {
-		// This closure is never invoked: the assertions ARE the @ts-expect-error
-		// directives, checked by `tsc --noEmit` (pnpm typecheck, and the
-		// pre-commit hook, both of which include __test__). If `land` or
-		// `validateEdit` ever accepted these shapes again, the directives become
-		// unused and typecheck fails. That compile-time rejection is the whole
-		// point of issue #2 — a runtime test cannot express it.
-		const rejected = () => {
-			// @ts-expect-error raw manifest text is not proof of validation
-			void land({ mode: "commit", ...params, change: EDITED });
-			// @ts-expect-error an unbranded { editedText, changes } is not proof either
-			void land({ mode: "commit", ...params, change: { editedText: EDITED, changes: [] } });
-			void validateEdit(
-				// @ts-expect-error a byte-stable NoopEdit can never be certified
-				{ original: ORIGINAL, editedText: ORIGINAL, changed: false, manifestName: "acme", changes: [] },
-				["p1"],
-			);
-		};
-		assert.isFunction(rejected);
-	});
 });

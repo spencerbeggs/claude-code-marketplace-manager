@@ -3,13 +3,13 @@ status: current
 module: marketplace-manager
 category: security
 created: 2026-07-23
-updated: 2026-07-23
-last-synced: 2026-07-23
+updated: 2026-08-04
+last-synced: 2026-08-04
 completeness: 95
 related:
   - ./architecture.md
 dependencies:
-  - "@savvy-web/github-action-effects"
+  - "@effected/github"
 ---
 
 # marketplace-manager — verified commits (load-bearing design decision)
@@ -24,12 +24,14 @@ the original bug.
 
 ## The mechanism
 
-The action uses the library's `GitCommit.commitFiles` and relies on **GitHub's
+The action uses `@effected/github`'s `GitCommit` and relies on **GitHub's
 server-side commit signing**. The chain of facts:
 
 1. **The token is a genuine GitHub App installation access token** (not a PAT).
-   `GitHubToken.provision` → `GitHubApp.generateToken` → `InstallationToken`;
-   `GitHubClientLive.fromToken` authenticates Octokit with it directly.
+   `pre` mints it with `GitHubToken.provision` (via `GitHubApp`) as an
+   `InstallationToken` and persists it to cross-phase state; `main` reads it back
+   and builds the Octokit client from it with `GitHubToken.clientLayer()`
+   (`layers/app.ts`), which authenticates with that token directly.
 2. **`GitCommit.commitFiles` sends no custom author / committer / signature.**
    Its Live impl calls `git.createCommit({ owner, repo, message, tree, parents })`
    only.
@@ -47,9 +49,16 @@ already omits those fields — which is exactly why the commit stays verified �
 and GitHub fills in the bot identity (author + committer) itself.
 
 In this codebase the rule is honored structurally: `ManifestCommitter.land`
-builds `files = [{ path, content }]` and calls `commit.commitFiles(ref, message,
-files)` with **no identity arguments** (`src/services/ManifestCommitter.ts`).
-There is no author/committer parameter to pass.
+builds `changes = [new FileContent({ path, content })]` and passes them to
+`commit.commitFiles` (commit mode) or `commit.createCommit` (pr mode) with **no
+identity arguments** (`src/services/ManifestCommitter.ts`).
+
+Since the port to `@effected/github` this is enforced by the type system rather
+than by discipline: **`GitCommit` exposes no author, committer or signature
+parameter on any member**, so there is nothing a caller could pass even by
+mistake. A test asserts the commit call's argument keys are exactly
+`message` / `tree` / `parents`, so if the kit ever grew such a parameter the
+suite says so rather than the behavior silently drifting.
 
 ## DCO sign-off is different — and required
 
@@ -76,9 +85,8 @@ path needs no provisioned token — an important test/ergonomics property.
 
 ## Reference implementation
 
-`savvy-web/silk-update-action` ships this same pattern: `GitCommitLive` wired
-from `GitHubToken.client()`, committed via `commit.commitFiles(branch, message,
-[{ path, content }])` with no author. It commits to a feature branch then PRs;
+`savvy-web/silk-update-action` ships this same pattern: a `GitCommit` layer
+wired from the token client, committed with no author. It commits to a feature branch then PRs;
 this action's commit-direct-to-main mode additionally relies on fact (3) above.
 
 ## Acceptance invariant

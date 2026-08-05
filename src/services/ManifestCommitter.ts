@@ -1,22 +1,9 @@
-import type {
-	GitBranchError,
-	GitCommitError,
-	GitHubClientError,
-	PullRequestError,
-} from "@savvy-web/github-action-effects";
-import { GitBranch, GitCommit, GitHubClient, PullRequest } from "@savvy-web/github-action-effects";
+import type { GitHubError, GitHubGraphQLError } from "@effected/github";
+import { FileContent, GitBranch, GitCommit, GitHubRepository, PullRequest, Repo } from "@effected/github";
 import { Effect } from "effect";
+import { InvalidInputError } from "../errors/errors.js";
 import { MANIFEST_PATH } from "./ManifestEditor.js";
 import type { ValidatedManifestChange } from "./ManifestValidator.js";
-
-/** Minimal shape of the octokit `repos.get` REST method, cast from `unknown`. */
-interface ReposGetOctokit {
-	readonly rest: {
-		readonly repos: {
-			readonly get: (args: { owner: string; repo: string }) => Promise<{ data: { default_branch: string } }>;
-		};
-	};
-}
 
 /** Outcome of landing an edit. */
 export interface LandResult {
@@ -44,84 +31,125 @@ export interface LandParams {
 	readonly autoMerge: "merge" | "squash" | "rebase";
 }
 
-/** Resolve the base branch: the input when set, else the repo's default branch. */
-export const resolveBaseBranch = (input: string | null): Effect.Effect<string, GitHubClientError, GitHubClient> =>
-	input !== null
-		? Effect.succeed(input)
-		: Effect.gen(function* () {
-				const client = yield* GitHubClient;
-				const { owner, repo } = yield* client.repo;
-				const { default_branch } = yield* client.rest<{ default_branch: string }>("repos.get", (octokit) =>
-					(octokit as ReposGetOctokit).rest.repos.get({ owner, repo }),
-				);
-				return default_branch;
-			});
+/**
+ * Resolve the base branch: the input when set, else the repo's default branch.
+ *
+ * @remarks
+ * `GitHubRepository.defaultBranch` replaces a hand-written `ReposGetOctokit`
+ * interface and a `client.rest<{ default_branch }>("repos.get", …)` callback
+ * that had to be cast into place. The route is the key, so there is nothing
+ * left to cast.
+ */
+export const resolveBaseBranch = (input: string | null): Effect.Effect<string, GitHubError, GitHubRepository | Repo> =>
+	input !== null ? Effect.succeed(input) : Effect.flatMap(GitHubRepository, (repository) => repository.defaultBranch);
 
-/** Land the edit per `mode`. Never passes author/committer/signature — commits stay verified. */
+/**
+ * Land the edit per `mode`.
+ *
+ * @remarks
+ * **Never passes author, committer or signature.** Server-side signing is what
+ * makes these commits verified, and on `@effected/github` the rule is
+ * structural rather than remembered: `GitCommit` exposes no such parameter to
+ * pass. The bot identity reaches the commit only as the DCO `Signed-off-by:`
+ * trailer inside `commitMessage` text.
+ *
+ * **The `pr`-mode sequence builds the commit before moving the ref** (ruling
+ * D-2). The obvious spelling — reset the head branch onto base, then commit to
+ * it — leaves a window in which the head branch *is* base, so an open PR from
+ * it has an empty diff and GitHub auto-closes it. `@effected/github` documents
+ * this against `GitBranch.upsert` and names this action as the consumer whose
+ * four-round-trip create-or-reset dance the API was built to replace:
+ *
+ * > When the end state is "the target head plus a commit", build the commit
+ * > first — `GitCommit.get` the target for its `treeSha`, `createTree` on it,
+ * > `createCommit` with the target as parent — and upsert **once**, straight to
+ * > the finished sha, so the ref never rests on the bare target head.
+ *
+ * The force-reset invariant is unchanged and is what the single `upsert` now
+ * expresses: every `pr`-mode run re-roots the head branch at base's *current*
+ * tip, discarding whatever an earlier run left there. That is deliberate — the
+ * `branch` input defaults to a fixed name reused run over run, and without the
+ * re-rooting the PR drifts until it conflicts. The branch is action-owned; a
+ * human commit pushed onto it is collateral.
+ *
+ * `upsert` also subsumes the pre-port `exists` / `create` / re-check-on-failure
+ * recovery: a concurrent creator is recognized structurally through
+ * `kind: "alreadyExists"` rather than by matching error prose, and the recovery
+ * resets rather than inheriting a branch rooted somewhere else.
+ *
+ * **`pr` mode refuses a head branch equal to its base**, before any commit is
+ * built. The two are independent inputs — `branch` is given, `base` is the
+ * `base-branch` input or the repo default — so nothing structural stops them
+ * colliding. If they did, the single `upsert` below would move the *base*
+ * branch to the new commit, landing an unreviewed commit directly on it, and
+ * only then would `PullRequest.upsert` fail on a head that equals its base.
+ * The failure would arrive after the write it was supposed to prevent. The
+ * guard lives here rather than at the call site because it protects the write,
+ * not the caller.
+ */
 export const land = (
 	params: LandParams,
 ): Effect.Effect<
 	LandResult,
-	GitCommitError | GitBranchError | PullRequestError | GitHubClientError,
-	GitCommit | GitBranch | PullRequest | GitHubClient
+	GitHubError | GitHubGraphQLError | InvalidInputError,
+	GitCommit | GitBranch | PullRequest | Repo
 > =>
 	Effect.gen(function* () {
 		const commit = yield* GitCommit;
-		const client = yield* GitHubClient;
-		const { owner, repo } = yield* client.repo;
-		const files = [{ path: MANIFEST_PATH, content: params.change.editedText }];
+		const { owner, repo } = yield* Repo;
+		const changes = [new FileContent({ path: MANIFEST_PATH, content: params.change.editedText })];
 		const commitUrl = (sha: string): string => `https://github.com/${owner}/${repo}/commit/${sha}`;
 
+		if (params.mode === "pr" && params.base === params.branch) {
+			return yield* Effect.fail(
+				new InvalidInputError({
+					field: "branch",
+					reason: `pr mode needs a head branch distinct from its base, but both are "${params.base}"`,
+				}),
+			);
+		}
+
 		if (params.mode === "commit") {
-			const sha = yield* commit.commitFiles(params.base, params.commitMessage, files);
+			// `commitFiles` reads the base head as the parent itself.
+			const sha = yield* commit.commitFiles({
+				branch: params.base,
+				message: params.commitMessage,
+				changes,
+			});
 			return { commitSha: sha, commitUrl: commitUrl(sha), prNumber: null, prUrl: null };
 		}
 
 		const branch = yield* GitBranch;
 		const pulls = yield* PullRequest;
 
-		// Every pr-mode run roots the head branch at base's CURRENT tip. The text
-		// being committed was computed from the checkout (base), so committing it
-		// onto a branch left over from an earlier run would stack a commit on a
-		// stale base — and since `branch` defaults to a fixed name reused run over
-		// run, the branch drifts until the PR is unmergeable. Resetting keeps each
-		// run's PR a clean one-commit diff against base. The reset cannot produce
-		// an empty diff: `land` is only reached once the no-op guard has proven the
-		// edit differs from base.
-		const baseSha = yield* branch.getSha(params.base);
-		const branchExists = yield* branch.exists(params.branch);
-		if (branchExists) {
-			yield* Effect.logInfo(
-				`Step: land — reset ${params.branch} onto ${params.base}@${baseSha.slice(0, 7)} (discarding any earlier run's commits)`,
-			);
-			yield* branch.reset(params.branch, baseSha);
-		} else {
-			// TOCTOU: another concurrent run can create this branch between the
-			// `exists` check above and this `create` call. The library's
-			// GitBranchError carries no structured "already exists" discriminant
-			// (just a free-form `reason` string), so re-checking existence after a
-			// failure — rather than string-matching the message — is the robust
-			// way to tell "someone else already created it" from a real failure.
-			// The recovery resets rather than merely proceeding, so a concurrent
-			// creator that rooted the branch elsewhere is corrected, not inherited.
-			yield* branch
-				.create(params.branch, baseSha)
-				.pipe(
-					Effect.catchTag("GitBranchError", (error) =>
-						Effect.flatMap(branch.exists(params.branch), (existsNow) =>
-							existsNow ? branch.reset(params.branch, baseSha) : Effect.fail(error),
-						),
-					),
-				);
-		}
+		// Build the finished commit against base FIRST — see the remarks above.
+		const baseSha = yield* branch.sha(params.base);
+		const baseCommit = yield* commit.get(baseSha);
+		const tree = yield* commit.createTree({ changes, baseTree: baseCommit.treeSha });
+		const sha = yield* commit.createCommit({
+			message: params.commitMessage,
+			tree,
+			parents: [baseCommit.sha],
+		});
 
-		const sha = yield* commit.commitFiles(params.branch, params.commitMessage, files);
-		const pr = yield* pulls.getOrCreate({
+		// ...then move the ref exactly once, straight to it. The head branch never
+		// rests on the bare base head, so no open PR is briefly empty.
+		yield* branch.upsert(params.branch, sha);
+
+		const { pullRequest } = yield* pulls.upsert({
+			title: params.prTitle,
 			head: params.branch,
 			base: params.base,
-			title: params.prTitle,
 			body: params.prBody,
-			autoMerge: params.autoMerge,
 		});
-		return { commitSha: sha, commitUrl: commitUrl(sha), prNumber: pr.number, prUrl: pr.url };
+		// A separate call, not an option on upsert: an auto-merge failure must not
+		// be reported as though opening the PR had failed.
+		yield* pulls.setAutoMerge(pullRequest, params.autoMerge);
+
+		return {
+			commitSha: sha,
+			commitUrl: commitUrl(sha),
+			prNumber: pullRequest.number,
+			prUrl: pullRequest.url,
+		};
 	});

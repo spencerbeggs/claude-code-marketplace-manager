@@ -3,8 +3,8 @@ status: current
 module: marketplace-manager
 category: architecture
 created: 2026-07-23
-updated: 2026-07-24
-last-synced: 2026-07-24
+updated: 2026-08-04
+last-synced: 2026-08-04
 completeness: 90
 related:
   - ./architecture.md
@@ -80,12 +80,12 @@ merge-patch (opaque array semantics, harder to validate).
 | Input | Default | Purpose |
 | ------- | --------- | --------- |
 | `mode` | `commit` | `commit` (direct to base) or `pr`. |
-| `base-branch` | repo default branch | Branch committed to / PR base. `null` ⇒ resolved at runtime via `repos.get`. |
+| `base-branch` | repo default branch | Branch committed to / PR base. `null` ⇒ resolved at runtime via `GitHubRepository.defaultBranch`. |
 | `branch` | `chore/repin-plugins` | PR head branch (pr mode). |
 | `commit-message` / `pr-title` / `pr-body` | generated (§ default messages) | Overrides. Empty string ⇒ `null` ⇒ use generated default. |
-| `auto-merge` | `rebase` | `merge`\|`squash`\|`rebase`, validated in `inputs.ts` (invalid value ⇒ `InvalidInputError`). Threaded into `ManifestCommitter.land`'s `pr`-mode branch as `PullRequest.getOrCreate`'s `autoMerge` option, which enables GitHub's native auto-merge via the library's `enablePullRequestAutoMerge` GraphQL mutation. Read but unused in `commit` mode — there is no PR to enable it on. |
+| `auto-merge` | `rebase` | `merge`\|`squash`\|`rebase`, validated in `inputs.ts` (invalid value ⇒ `InvalidInputError`). Threaded into `ManifestCommitter.land`'s `pr`-mode branch and applied with an explicit `PullRequest.setAutoMerge(pr, method)` call after the PR is upserted, which enables GitHub's native auto-merge via the `enablePullRequestAutoMerge` GraphQL mutation. It is a separate call rather than an option on the upsert, so an auto-merge failure is never reported as though opening the PR had failed. Read but unused in `commit` mode — there is no PR to enable it on. |
 | `dry-run` | `false` | Validate + emit output, skip commit/PR. |
-| `app-client-id` / `app-private-key` | — (required) | GitHub App credentials. |
+| `app-client-id` / `app-private-key` | — (required) | GitHub App credentials, read in `pre.ts` and passed **explicitly** to `GitHubToken.provision` (the pre-port helper defaulted them from these inputs internally). The private key is read with `ActionInput.redacted` and stays `Redacted` end to end. |
 
 ## Output contract (`schema/report-output.ts` + `projections.ts`)
 
