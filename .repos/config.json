@@ -18,10 +18,24 @@
 			"sparse": [
 				"packages/github-actions",
 				"packages/github",
-				"packages/commands",
 				"packages/jsonc",
+				"packages/schemastore",
 				"LLMS.md",
 				"README.md"
+			],
+			"notes": [
+				{
+					"id": "n-7de3",
+					"date": "2026-08-04",
+					"ref": "@effected/github-actions@0.5.0",
+					"note": "`.claude/design/marketplace-manager/architecture.md`'s Decision D-2 cites this repo by LINE ANCHOR: `packages/github/src/GitBranch.ts:46-69` (verified resolving at this pin — line 46 is the `@remarks` opener, line 69 ends `on the bare target head.`). It is the only line-number reference from our design docs into a vendored repo, so re-pinning `effected` can silently invalidate it. The surrounding prose quotes the TSDoc's substance, so the doc stays correct either way — only the `:46-69` would go stale and mislead. Re-check that anchor on any re-pin."
+				},
+				{
+					"id": "n-fe8b",
+					"date": "2026-08-04",
+					"ref": "@effected/github-actions@0.5.0",
+					"note": "`git -C .repos/effected describe --tags` reports `@effected/app@0.7.0`, NOT the `@effected/github-actions@0.5.0` this entry is pinned to. That is not drift — it is `describe` picking the nearest reachable tag in a monorepo that tags per package, and many packages share a release commit. Check the gitlink against `repos_inspect` or `git rev-parse HEAD` (expect `768e2aa`), never `describe`, before concluding the pin moved."
+				}
 			]
 		}
 	}
