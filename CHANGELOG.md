@@ -1,5 +1,15 @@
 # claude-code-marketplace-manager
 
+## 1.0.4
+
+### Maintenance
+
+* Adopts `effect@rc.109`
+
+### Patch Changes
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
 ## 1.0.3
 
 ### Bug Fixes
