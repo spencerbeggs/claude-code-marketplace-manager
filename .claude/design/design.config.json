@@ -1,17 +1,17 @@
 {
 	"modules": {
 		"marketplace-manager": {
-			"path": "src",
+			"categories": ["architecture", "security", "validation"],
 			"designDocsPath": ".claude/design/marketplace-manager",
-			"categories": ["architecture", "security", "validation"]
+			"path": "src"
 		}
 	},
 	"quality": {
 		"design": {
+			"maxStaleDays": 30,
 			"minCompleteness": 70,
 			"requireFrontmatter": true,
-			"requireSync": true,
-			"maxStaleDays": 30
+			"requireSync": true
 		}
 	}
 }
