@@ -1,6 +1,6 @@
 {
 	"name": "claude-code-marketplace-manager",
-	"version": "1.0.4",
+	"version": "1.0.5",
 	"private": true,
 	"description": "GitHub Action that re-pins git-subdir plugin sources in a Claude Code marketplace manifest as verified commits or pull requests.",
 	"keywords": ["github-action", "claude-code", "claude-code-plugin", "marketplace-manifest"],
