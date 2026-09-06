@@ -23,6 +23,17 @@
 				"LLMS.md",
 				"README.md"
 			],
+			"orientation": {
+				"layout": "pnpm monorepo, one directory per published package under packages/<name>/ with src/, test files co-located, and its own CLAUDE.md. The sparse checkout materializes only github-actions, github, jsonc and schemastore in full; every OTHER packages/<name>/ directory exists but holds nothing but a README.md (the non-cone `README.md` pattern matches at any depth) — an empty-looking package is out of the sparse set, not missing upstream. This repo carries nine submodules of its OWN (.repos/cmark-gfm, commonmark-js, commonmark-spec, effect, mdast, mdast-util-from-markdown, mdast-util-mdx-expression, mdast-util-mdx-jsx, mdast-util-mdxjs-esm) — leave every one uninitialized. `sparse` cannot evict a nested submodule's worktree, because it belongs to a different repository, so a recursive init materializes .repos/effected/.repos/effect as a SECOND Effect clone that drifts off the top-level .repos/effect pin; an agent reading Effect source through this tree then gets a version nobody pinned, and effected stays permanently dirty. Repair with `savvy repos restore effected`, which deinitializes them. Verify with `git -C .repos/effected submodule status` — every line must start with `-`.",
+				"keyPaths": {
+					"packages": "packages",
+					"actions-runtime": "packages/github-actions/src",
+					"github-api": "packages/github/src",
+					"jsonc-edits": "packages/jsonc/src",
+					"schemastore": "packages/schemastore/src"
+				},
+				"startHere": "packages/<name>/src/index.ts for a package's real export surface, and its CLAUDE.md for the intended usage. Pinned to the release tag named by `ref`, so the checkout matches the published version this repo installs — re-pin whenever that version moves. A tag is a monorepo-wide release commit, so github-actions@X and app@Y from the same wave resolve to one commit. node_modules still wins on any disagreement."
+			},
 			"notes": [
 				{
 					"id": "n-0380",
