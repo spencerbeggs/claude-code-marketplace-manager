@@ -14,11 +14,14 @@ ref→sha resolution.
 
 ## Stack
 
-- Effect v4 (`4.0.0-beta.101`) + `@effected/github-actions` (runner) and
-  `@effected/github` (API).
+- Effect v4 + `@effected/github-actions` (runner) and `@effected/github` (API).
 - `@effected/jsonc` for format-preserving edits; `ajv` for manifest validation.
+- Versions come from pnpm catalogs, not this file — read the installed one from
+  the lockfile, and re-pin the vendored source in `.repos/config.json` (which
+  tracks the installed `effect` / `@effected/github-actions`) when they bump.
 - Bundled to a committed `dist/` by `@savvy-web/github-action-builder`.
-- Node ≥ 24.11; pnpm; Biome; Vitest.
+- Node ≥ 24.11; pnpm; Biome; Vitest (`@effected/yaml` is test-only — it parses
+  `action.yml`).
 
 ## Commands
 
@@ -57,6 +60,24 @@ ref→sha resolution.
 - Failures arrive as a single `GitHubError` with a structured `kind` (plus
   `GitHubGraphQLError` on the auto-merge path). Branch on `kind` — never match
   error prose.
+- `src/contract.ts` declares every input/output **name** and every non-empty
+  default. `inputs.ts` imports `INPUT_DEFAULTS` outright; the names themselves
+  are still string literals at the call sites (`inputs.ts`, `pre.ts`,
+  `program.ts`), so what actually holds `action.yml`, `contract.ts` and those
+  literals together is `__test__/action-contract.test.ts`. Adding or renaming
+  an input means editing all three — the failure is otherwise silent: a rename
+  in `action.yml` alone leaves the code reading an input nobody supplies and
+  quietly taking the default. No compile or runtime error.
+- Each entry point (`pre.ts`/`main.ts`/`post.ts`) ends in an
+  `if (process.env.GITHUB_ACTIONS)` guard, and `vitest.setup.ts` strips the
+  runner environment (`GITHUB_*`, `INPUT_*`, `STATE_*`) in `globalSetup` before
+  the forks pool spawns. They only work as a pair — drop either and importing
+  an entry point in a test executes a real phase on a runner.
+- Test doubles must perform the transformations the real implementation
+  performs (the `ActionOutputs` `setJson` double encodes through the schema),
+  and validation fixtures must be structurally valid except in the field under
+  test. Both rules are load-bearing: a double that skipped the encode and a
+  fixture that failed on the wrong field each kept a dead test green.
 - Effect Schemas are the source of truth; the root `*.input.json` /
   `*.output.json` schemas are generated and **drift-tested** — regenerate after
   schema changes, don't hand-edit.
@@ -87,8 +108,8 @@ Load when touching commit landing, author/committer identity, or signing.
 **For input/output contracts:**
 → `@./.claude/design/marketplace-manager/input-output-contracts.md`
 
-Load when changing inputs, the patch shape, the JSON Schemas, or the `result`
-output.
+Load when changing inputs, the patch shape, `src/contract.ts` and the
+action-contract sync, the JSON Schemas, or the `result` output.
 
 **For manifest validation:**
 → `@./.claude/design/marketplace-manager/validation.md`

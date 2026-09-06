@@ -57,6 +57,9 @@ catalogs:
     '@effected/schemastore':
       specifier: ^0.6.0
       version: 0.6.0
+    '@effected/yaml':
+      specifier: ^0.13.0
+      version: 0.13.0
 
 overrides:
   '@microsoft/api-extractor>typescript': ^6.0.3
@@ -92,6 +95,9 @@ importers:
       '@effected/schemastore':
         specifier: catalog:effected
         version: 0.6.0(effect@4.0.0-rc.112)
+      '@effected/yaml':
+        specifier: catalog:effected
+        version: 0.13.0(effect@4.0.0-rc.112)
       '@savvy-web/github-action-builder':
         specifier: ^2.3.2
         version: 2.3.2(@types/node@26.4.1)(redis@6.2.1)(typescript@7.0.2)

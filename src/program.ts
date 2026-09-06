@@ -1,6 +1,6 @@
 import type { ActionOutputsShape } from "@effected/github-actions";
 import { ActionOutputs, GitHubToken } from "@effected/github-actions";
-import { Effect, Exit } from "effect";
+import { Cause, Effect, Exit } from "effect";
 import type { ParsedInputs } from "./inputs.js";
 import { parseInputs } from "./inputs.js";
 import { buildSummary, commitSubject, defaultCommitMessage, messageBody } from "./report.js";
@@ -29,7 +29,23 @@ const emit = (outputs: ActionOutputsShape, output: ReportOutput) =>
 			.pipe(Effect.catch((e) => Effect.logWarning(`Failed to write summary: ${String(e)}`)));
 	});
 
-/** Emit a structured failed `result` (best-effort) for the given mode/dry-run. */
+/**
+ * Emit a structured failed `result` (best-effort) for the given mode/dry-run.
+ *
+ * @remarks
+ * "Best-effort" is enforced here rather than assumed at the call sites. Both
+ * callers run this *before* re-raising the cause that actually failed the run,
+ * so anything escaping this effect would short-circuit the `yield*` and take
+ * the place of that cause — the run would then report an output-write problem
+ * instead of the validation or API error that caused it, which is precisely
+ * the diagnostic a failing run exists to deliver.
+ *
+ * `emit` guards its own `setJson` and `summary` calls, but the eight plain
+ * `outputs.set` writes between them are unguarded and each one touches the
+ * runner's file descriptor, so this is a reachable failure rather than a
+ * theoretical one. `catchCause` rather than `catch` because a defect displaces
+ * the real cause just as effectively as a typed failure.
+ */
 const emitFailure = (outputs: ActionOutputsShape, mode: "commit" | "pr", dryRun: boolean) =>
 	emit(
 		outputs,
@@ -44,7 +60,7 @@ const emitFailure = (outputs: ActionOutputsShape, mode: "commit" | "pr", dryRun:
 			succeeded: false,
 			hasFailures: true,
 		}),
-	);
+	).pipe(Effect.catchCause((cause) => Effect.logWarning(`Failed to emit failure result: ${Cause.pretty(cause)}`)));
 
 /** Read, edit, validate, and land the manifest change once inputs are parsed. */
 const runOrchestration = (outputs: ActionOutputsShape, inputs: ParsedInputs) =>

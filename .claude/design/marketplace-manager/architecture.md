@@ -3,9 +3,9 @@ status: current
 module: marketplace-manager
 category: architecture
 created: 2026-07-23
-updated: 2026-08-04
-last-synced: 2026-08-04
-completeness: 92
+updated: 2026-09-06
+last-synced: 2026-09-06
+completeness: 94
 related:
   - ./verified-commits.md
   - ./input-output-contracts.md
@@ -15,7 +15,7 @@ dependencies:
   - "@effected/github"
   - "@savvy-web/github-action-builder"
   - "@effected/jsonc"
-  - effect@4.0.0-beta.101
+  - effect@4.0.0-rc.112
 ---
 
 # marketplace-manager — architecture
@@ -29,7 +29,7 @@ partial-merge updates to existing `git-subdir` plugin entries (any subset of
 the change as a **verified** commit — either directly on the base branch
 (`commit` mode) or via a pull request (`pr` mode).
 
-It is built on Effect v4 (`4.0.0-beta.101`), `@effected/github-actions` (the
+It is built on Effect v4 (`4.0.0-rc.112`), `@effected/github-actions` (the
 runner) and `@effected/github` (the API),
 bundled into a committed `dist/` by `@savvy-web/github-action-builder`.
 
@@ -55,7 +55,7 @@ The action runs as the standard pre / main / post lifecycle:
 | Phase | File | Responsibility |
 | ------- | ------ | ---------------- |
 | pre | `src/pre.ts` | Provision a GitHub App installation token with `REQUIRED_PERMISSIONS = { contents: "write", pull_requests: "write" }`; record start time into cross-phase state. |
-| main | `src/main.ts` | Thin `Action.run(program, { layer: MainLive })`. All work lives in `program.ts`. |
+| main | `src/main.ts` | Thin `Action.run(program, { layer: MainLive })` behind the `GITHUB_ACTIONS` entry guard. All work lives in `program.ts`. |
 | post | `src/post.ts` | **Revoke-first**: always dispose the installation token (belt-and-braces `catch`/`catchDefect`), on success and failure alike. |
 
 The installation token is **always** revoked in `post`; there is no opt-out.
@@ -74,6 +74,38 @@ Two details of the `pre` call are easy to misread:
   the private key is read with `ActionInput.redacted` and stays `Redacted` end to
   end — `provision` takes the wrapper, so it is never unwrapped in this module.
 
+### Every entry point runs behind a `GITHUB_ACTIONS` guard
+
+All three files end in `if (process.env.GITHUB_ACTIONS) { await Action.run(…) }`.
+`pre.ts` and `post.ts` always had it; `main.ts` called `Action.run`
+unconditionally at import until this was made uniform. The guard is what makes
+an entry point *importable* — without it, a test that imports `post.ts` to
+exercise the phase runs the real phase as an import side effect and, with runner
+credentials present, mints and revokes a real installation token.
+
+The guard is only half of it: `vitest.setup.ts`'s `globalSetup` deletes the
+runner environment (`GITHUB_ACTIONS`, `GITHUB_TOKEN`, `GITHUB_OUTPUT` /
+`STATE` / `ENV` / `PATH` / `STEP_SUMMARY`, and every `INPUT_*` and `STATE_*`)
+before the `forks` pool spawns any worker, so the guard is false inside tests
+even when `ci:test` itself runs on a runner. Deleting `INPUT_*` matters
+independently: `ActionInput` reads the mangled variables, so a leaked runner
+value would stand in for a fixture and make a test pass for the wrong reason.
+Forked workers inherit `process.env` as it stands at fork time — an assumption
+about the pool rather than a documented promise, so `__test__/env.test.ts`
+asserts the strip from *inside* a worker rather than trusting it.
+
+### The revoke-first ordering is pinned by a test, and the fault has to be a defect
+
+`post` revokes before it reads the start time, so nothing later in the phase can
+displace revocation. `__test__/post.test.ts` pins that ordering by making the
+start-time read **die** rather than fail typed. The distinction is the test: the
+start-time read already carries its own `Effect.catch`, so a typed
+`ActionStateError` is swallowed and revocation runs either way — a typed
+fixture leaves the test green against a reordered `post`, proving nothing. A
+defect is caught only by the outer `catchDefect`, which sits *after* the
+revocation point, so it reaches the token exactly when the order is wrong.
+Anyone simplifying that fixture to a typed failure turns the test dead again.
+
 ## Orchestration (`src/program.ts`)
 
 `program` wraps `parseInputs` and the orchestration body (`runOrchestration`)
@@ -83,6 +115,19 @@ failed `result` (`status: "failed"`, `hasFailures: true`, `succeeded: false`,
 `Effect.failCause` so the action still exits non-zero. Every terminal path —
 no-op, dry-run, land, and failure — emits a `result` before returning. See
 [input-output-contracts.md](./input-output-contracts.md).
+
+**`emitFailure` swallows its own failures, and that is enforced in the helper
+rather than assumed at the call sites.** Both callers run it *before* re-raising
+the cause that actually failed the run, so anything escaping it short-circuits
+the `yield*` and takes the place of that cause: the run would report an
+output-write problem instead of the validation or API error the run exists to
+report. `emit` guards its own `setJson` and `summary`, but the eight plain
+`outputs.set` writes between them are unguarded and each touches the runner's
+file descriptor, so this is reachable rather than theoretical. It is therefore
+wrapped in `Effect.catchCause(… logWarning)` — `catchCause` and not `catch`,
+because a defect displaces the real cause just as effectively as a typed
+failure. A fault-injection test in `__test__/program.test.ts` asserts the domain
+error survives while every output write dies.
 
 The full logical pipeline, in order (step 1 in `program`, steps 2–9 in
 `runOrchestration`):
@@ -111,6 +156,18 @@ The full logical pipeline, in order (step 1 in `program`, steps 2–9 in
 9. **Emit** the structured `result` output, convenience scalars, and a job
    summary (both non-fatal).
 
+### Decision D-3 — the dry-run guard is not the kit's `DryRun` service
+
+`@effected/github-actions` ships a `DryRun` service, and it was evaluated and
+**deliberately not adopted**. It models a *wrapped mutation with a fallback* —
+run this effect, or substitute that value when dry. Step 6 here is not that
+shape: it is an early return that emits a **different report** and never reaches
+the landing code at all (`program.ts:99`). The `dryRun` boolean also feeds the
+output projection and the job summary independently of any mutation, so it would
+still have to be threaded through as a plain value. Adopting `DryRun` would add
+a service to carry a flag that has to exist anyway, and would have to fake the
+"wrapped mutation" the code does not have.
+
 ## Module layout (`src/`)
 
 | Area | Files | Role |
@@ -118,6 +175,7 @@ The full logical pipeline, in order (step 1 in `program`, steps 2–9 in
 | Lifecycle | `pre.ts`, `main.ts`, `post.ts` | Phase entrypoints. |
 | Orchestration | `program.ts` | The main pipeline (above). |
 | Inputs | `inputs.ts` | `parseInputs` → `ParsedInputs`; enforces the XOR. |
+| Contract | `contract.ts` | The declared input/output names and non-empty defaults; dependency-free. See [input-output-contracts.md](./input-output-contracts.md). |
 | Errors | `errors/errors.ts` | Tagged errors: `InvalidInputError`, `ManifestValidationError`, `PluginNotFoundError`. |
 | Schema | `schema/marketplace.ts`, `schema/input.ts`, `schema/report-output.ts`, `schema/projections.ts` | Effect Schemas (source of truth) + committed JSON Schema sources + the pure output projection. |
 | Services | `services/ManifestEditor.ts`, `services/ManifestValidator.ts`, `services/ManifestCommitter.ts` | Read/edit, validate, and land. |

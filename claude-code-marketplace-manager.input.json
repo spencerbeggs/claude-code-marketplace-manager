@@ -20,12 +20,8 @@
 				},
 				"sha": {
 					"type": "string",
-					"allOf": [
-						{
-							"pattern": "^[0-9a-f]{40}$",
-							"description": "New source.sha (40-hex lowercase commit)."
-						}
-					]
+					"pattern": "^[0-9a-f]{40}$",
+					"description": "New source.sha (40-hex lowercase commit)."
 				}
 			},
 			"required": ["name"],

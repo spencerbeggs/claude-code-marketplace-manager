@@ -2,7 +2,9 @@ import { Jsonc } from "@effected/jsonc";
 import Ajv from "ajv";
 import { Brand, Effect } from "effect";
 import { ManifestValidationError } from "../errors/errors.js";
-// biome-ignore lint/correctness/useImportExtensions: forceJsExtensions rewrites this already-correct `.json` extension to `.js`, which breaks resolution; this is a JSON asset import, not a relative TS/JS module import.
+// This is a JSON asset import, not a relative TS/JS module import, so the `.json`
+// extension is the real one and must survive: the builder's `forceJsExtensions`
+// rewriting it to `.js` would break resolution.
 import marketplaceSchema from "../schema/claude-code-marketplace.json" with { type: "json" };
 import type { ChangeRecord } from "../schema/marketplace.js";
 import type { ChangedEdit } from "./ManifestEditor.js";
