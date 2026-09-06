@@ -2,8 +2,8 @@
 	"repos": {
 		"effect": {
 			"url": "https://github.com/Effect-TS/effect.git",
-			"ref": "effect@4.0.0-beta.101",
-			"purpose": "Read-only Effect v4 source pinned to the tag matching the installed effect beta — the authority on what v4 actually exports, plus the v3→v4 migration notes.",
+			"ref": "effect@4.0.0-rc.112",
+			"purpose": "Read-only Effect v4 source pinned to the tag matching the installed effect release — the authority on what v4 actually exports, plus the v3→v4 migration notes.",
 			"sparse": [
 				"packages/effect",
 				"migration",
@@ -13,7 +13,7 @@
 		},
 		"effected": {
 			"url": "https://github.com/spencerbeggs/effected.git",
-			"ref": "@effected/github-actions@0.5.0",
+			"ref": "@effected/github-actions@0.11.0",
 			"purpose": "Read-only source for @effected/github-actions, @effected/github and @effected/jsonc — the libraries this action is built on. Pin tracks the installed @effected/github-actions version.",
 			"sparse": [
 				"packages/github-actions",
@@ -25,16 +25,16 @@
 			],
 			"notes": [
 				{
-					"id": "n-7de3",
-					"date": "2026-08-04",
-					"ref": "@effected/github-actions@0.5.0",
-					"note": "`.claude/design/marketplace-manager/architecture.md`'s Decision D-2 cites this repo by LINE ANCHOR: `packages/github/src/GitBranch.ts:46-69` (verified resolving at this pin — line 46 is the `@remarks` opener, line 69 ends `on the bare target head.`). It is the only line-number reference from our design docs into a vendored repo, so re-pinning `effected` can silently invalidate it. The surrounding prose quotes the TSDoc's substance, so the doc stays correct either way — only the `:46-69` would go stale and mislead. Re-check that anchor on any re-pin."
+					"id": "n-0380",
+					"date": "2026-09-06",
+					"ref": "@effected/github-actions@0.11.0",
+					"note": "`git -C .repos/effected describe --tags` reports `@effected/app@0.14.0`, NOT the `@effected/github-actions@0.11.0` this entry is pinned to. That is not drift — `describe` picks the nearest reachable tag in a monorepo that tags per package, and many packages share a release commit. (It reported a sibling `@effected/app` tag at the previous 0.5.0 pin too, so this is the steady-state behavior, not a one-off.) Check the gitlink against `repos_inspect` or `git rev-parse HEAD` (expect `86f52f5`), never `describe`, before concluding the pin moved."
 				},
 				{
-					"id": "n-fe8b",
-					"date": "2026-08-04",
-					"ref": "@effected/github-actions@0.5.0",
-					"note": "`git -C .repos/effected describe --tags` reports `@effected/app@0.7.0`, NOT the `@effected/github-actions@0.5.0` this entry is pinned to. That is not drift — it is `describe` picking the nearest reachable tag in a monorepo that tags per package, and many packages share a release commit. Check the gitlink against `repos_inspect` or `git rev-parse HEAD` (expect `768e2aa`), never `describe`, before concluding the pin moved."
+					"id": "n-0b69",
+					"date": "2026-09-06",
+					"ref": "@effected/github-actions@0.11.0",
+					"note": "`.claude/design/marketplace-manager/architecture.md` (Decision D-2) cites this repo by LINE ANCHOR: `packages/github/src/GitBranch.ts:46-69`. Verified at this pin (`86f52f5`): line 46 is the `@remarks` opener, line 69 ends `on the bare target head.`, and `readonly upsert` follows at 71. The range did NOT move across the 0.5.0 -> 0.11.0 re-pin. Verify it with `grep -n '@remarks\\|on the bare target head' <file>` and never by eyeballing a `sed -n 'A,Bp'` range — the first printed line is A, not the line you want, and an off-by-two there already produced one wrong \"correction\" to this anchor. It is the only line-number reference from our design docs into a vendored repo. The surrounding prose quotes the TSDoc's substance, so the doc stays correct either way; only the range can go stale and mislead. Re-check on any re-pin."
 				}
 			]
 		}

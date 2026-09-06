@@ -1,6 +1,7 @@
 import { ActionInput } from "@effected/github-actions";
 import type { Config } from "effect";
 import { Config as Cfg, Effect } from "effect";
+import { INPUT_DEFAULTS } from "./contract.js";
 import { InvalidInputError } from "./errors/errors.js";
 import type { PluginPatch } from "./schema/input.js";
 import { decodeJsonInput } from "./schema/input.js";
@@ -107,18 +108,18 @@ export const parseInputs: Effect.Effect<ParsedInputs, InvalidInputError | Config
 			patches = decoded.plugins;
 		}
 
-		const modeRaw = yield* ActionInput.string("mode").pipe(Cfg.withDefault("commit"));
+		const modeRaw = yield* ActionInput.string("mode").pipe(Cfg.withDefault(INPUT_DEFAULTS.mode));
 		if (modeRaw !== "commit" && modeRaw !== "pr") {
 			return yield* Effect.fail(new InvalidInputError({ field: "mode", reason: `expected commit|pr, got ${modeRaw}` }));
 		}
 
 		const baseBranch = emptyToNull(yield* ActionInput.string("base-branch").pipe(Cfg.withDefault("")));
-		const branch = yield* ActionInput.string("branch").pipe(Cfg.withDefault("chore/repin-plugins"));
+		const branch = yield* ActionInput.string("branch").pipe(Cfg.withDefault(INPUT_DEFAULTS.branch));
 		const commitMessage = emptyToNull(yield* ActionInput.string("commit-message").pipe(Cfg.withDefault("")));
 		const prTitle = emptyToNull(yield* ActionInput.string("pr-title").pipe(Cfg.withDefault("")));
 		const prBody = emptyToNull(yield* ActionInput.string("pr-body").pipe(Cfg.withDefault("")));
 
-		const autoMergeRaw = yield* ActionInput.string("auto-merge").pipe(Cfg.withDefault("rebase"));
+		const autoMergeRaw = yield* ActionInput.string("auto-merge").pipe(Cfg.withDefault(INPUT_DEFAULTS["auto-merge"]));
 		if (autoMergeRaw !== "merge" && autoMergeRaw !== "squash" && autoMergeRaw !== "rebase") {
 			return yield* Effect.fail(
 				new InvalidInputError({ field: "auto-merge", reason: `expected merge|squash|rebase, got ${autoMergeRaw}` }),

@@ -3,14 +3,14 @@ status: current
 module: marketplace-manager
 category: architecture
 created: 2026-07-23
-updated: 2026-08-04
-last-synced: 2026-08-04
-completeness: 90
+updated: 2026-09-06
+last-synced: 2026-09-06
+completeness: 93
 related:
   - ./architecture.md
   - ./validation.md
 dependencies:
-  - effect@4.0.0-beta.101
+  - effect@4.0.0-rc.112
 ---
 
 # marketplace-manager — input & output contracts
@@ -31,6 +31,72 @@ is a vendored asset:
 Generation is driven by `lib/scripts/generate-schema.ts` with a
 `{ schema, $id, path }` target table and guarded by a drift test. Both root
 schema files are present and drift-tested as of this branch.
+
+The script exports **both** `targets` and its `AppLayer`, and
+`__test__/generate-schema.test.ts` imports both, so the drift check runs the
+generator's own walk against the generator's own wiring rather than a
+re-declared copy that can drift out of step with it. `SchemaPipeline.checkOne`
+*reports* rather than enforces, so the test asserts its three signals
+separately — they are not redundant, because each has a different remedy:
+
+| Signal | Meaning | Remedy |
+| -------- | --------- | -------- |
+| `blocked` | the document could never have been written at all | fix the findings; regenerating will not help |
+| `contractBlocked` | the contract policy would refuse the write | bump the schema version |
+| `wouldWrite` | ordinary drift | run `pnpm generate-schema` |
+
+`DocumentDiff.isClean(result.change)` is asserted alongside them, comparing
+content rather than text so the guard is immune to whatever formatted the
+committed file.
+
+## `src/contract.ts` — the middle term between `action.yml` and the code
+
+`action.yml` is the manifest GitHub reads, but **nothing in the type system
+connects it to the code that reads those inputs and writes those outputs.** The
+two drift silently, and in the direction that hurts most: rename an input in
+`action.yml` without updating the `ActionInput` call and you have a perfectly
+type-correct action that reads an input nobody supplies and quietly takes the
+default. There is no compile error and no runtime error — just wrong behavior.
+
+`src/contract.ts` is the middle term that makes the mismatch checkable. It is
+deliberately dependency-free — a description of the contract, not a participant
+in it — and exports:
+
+- `INPUT_NAMES` (15) and `OUTPUT_NAMES` (9), the declared names, ordered to
+  match the manifest for reviewability (the test compares as sets).
+- `InputName` / `OutputName`, those tuples narrowed to types.
+- `INPUT_DEFAULTS` — **only** the inputs whose `action.yml` default is something
+  other than `""`: `mode`, `branch`, `auto-merge`, `dry-run`. An omitted input
+  arrives as `""` whether or not the manifest says so, and `inputs.ts` maps `""`
+  to "missing" uniformly, so an empty default carries no information. A
+  *non-empty* default is a real behavioral decision that previously existed
+  twice — once in the manifest, once as a literal in `inputs.ts` — with nothing
+  keeping the two honest. `inputs.ts` now reads them from here.
+
+`__test__/action-contract.test.ts` asserts a **three-way** agreement:
+
+1. `action.yml` ↔ `contract.ts` — the declared name sets match exactly, the
+   mirrored defaults match, and every *other* optional input still defaults to
+   `""` (which is the reasoning `INPUT_DEFAULTS` is built on: an unmirrored
+   input quietly acquiring a real default would change behavior with nothing to
+   notice it).
+2. `contract.ts` ↔ the code — every declared name appears in an
+   `ActionInput.<accessor>("name")` read or an `outputs.set*("name", …)` write
+   somewhere in `inputs.ts` / `pre.ts` / `program.ts`. This leg is asserted
+   against the **source text**, because a name reaching those calls is a string
+   literal that appears in no type — there is nothing else for a test to hold.
+
+`action.yml` is parsed with `@effected/yaml` (a test-only devDependency) and
+decoded through a `Schema.Record` that models only `inputs` and `outputs`, so
+the manifest stays free to carry keys (`branding`, `runs`) without the decode
+becoming a second place to maintain the contract.
+
+`dry-run` is spelled in `INPUT_DEFAULTS` as the manifest's string `"false"`;
+`inputs.ts` reads it through `ActionInput.boolean` and the test asserts the two
+agree once parsed.
+
+**Adding or renaming an input or output means editing all three places** —
+`action.yml`, `contract.ts`, and the call site — or the suite fails.
 
 ## Input contract (`action.yml` → `inputs.ts`)
 
@@ -77,6 +143,10 @@ merge-patch (opaque array semantics, harder to validate).
 
 ### Other inputs
 
+The non-empty defaults below are not re-declared in `inputs.ts`; it reads them
+from `INPUT_DEFAULTS` (above), which the contract test holds equal to
+`action.yml`.
+
 | Input | Default | Purpose |
 | ------- | --------- | --------- |
 | `mode` | `commit` | `commit` (direct to base) or `pr`. |
@@ -113,13 +183,26 @@ The `status: "failed"` / `hasFailures: true` / `succeeded: false` (and
 failure (input parsing, validation, or landing) `program.ts` emits a structured
 failed `result` via an `emitFailure` helper **before** re-raising the error, so
 the action still exits non-zero while downstream consumers still see a
-well-formed failed `result`. See the control-flow note in
-[architecture.md](./architecture.md).
+well-formed failed `result`. Because that emission runs first, it is wrapped in
+`Effect.catchCause` so a failing output write can never displace the real cause
+— see the control-flow note in [architecture.md](./architecture.md).
 
 ### Convenience scalar outputs
 
 Emitted alongside `result` (non-fatal): `status`, `changed` (`true`/`false`),
 `mode`, `commit-sha`, `commit-url`, `pr-number`, `pr-url`, `plugins-updated`.
+
+> **Testing note.** The `ActionOutputs.layerTest` double for `setJson` in
+> `__test__/program.test.ts` **must encode through the schema it is handed**,
+> exactly as the real `setJson` does. A double that accepts the schema and
+> ignores it makes every `result` assertion structurally incapable of catching a
+> projection/schema drift: production would fail to encode, `program.ts` would
+> demote that to a `logWarning`, and the machine-readable `result` would
+> silently vanish with the suite green. The double raises the encode failure as
+> a **defect** (`orDie`), which is the one place it is deliberately *stricter*
+> than production — production degrades gracefully because losing `result`
+> should not fail a run that already did its work; in a test the same event is a
+> contract bug and has to be loud.
 
 ### Job summary
 

@@ -4,32 +4,32 @@
 		{
 			"source": "CLAUDE.md",
 			"target": ".claude/design/marketplace-manager/README.md",
-			"hash": "b5170e2aecf82c9ad30ff1e500aa618b0bb56cef97dd4fe8b9b557b4b828c6d0",
-			"recordedAt": "2026-08-04"
+			"hash": "9b26e8d37ac560b6e04ed02ec025299e312c87c93d6ef7709e8bc5da295b8ce3",
+			"recordedAt": "2026-09-06"
 		},
 		{
 			"source": "CLAUDE.md",
 			"target": ".claude/design/marketplace-manager/architecture.md",
-			"hash": "831e754d7bc067083fa8371aaf43aac2a93456be38c3248ee2d888f6f945a081",
-			"recordedAt": "2026-08-04"
+			"hash": "22e3020b041825154ef3d9e37d062f15cfabb637a355226f9557d20c91a58e61",
+			"recordedAt": "2026-09-06"
 		},
 		{
 			"source": "CLAUDE.md",
 			"target": ".claude/design/marketplace-manager/input-output-contracts.md",
-			"hash": "05bf17fb6b1f0e968c127447956b417299d03f1830a3fd892368096fc58265b3",
-			"recordedAt": "2026-08-04"
+			"hash": "34585689f71919f4c48da4973967f9a1faafb838ae79791b5aeb679d7bd8365a",
+			"recordedAt": "2026-09-06"
 		},
 		{
 			"source": "CLAUDE.md",
 			"target": ".claude/design/marketplace-manager/validation.md",
-			"hash": "7c76a9310f308675c271364918e8b2dfb1a739f58a3370ebcb2dd766b42fb7e8",
-			"recordedAt": "2026-08-04"
+			"hash": "3ecfece32101044cf706adcbf698e95494db582a42dd08b3fd046b4eafa15784",
+			"recordedAt": "2026-09-06"
 		},
 		{
 			"source": "CLAUDE.md",
 			"target": ".claude/design/marketplace-manager/verified-commits.md",
-			"hash": "cf03e3821b5efcab1fdb202660163358ce08ea969ffbe34010785a7d62784338",
-			"recordedAt": "2026-08-04"
+			"hash": "6c4374c2167754faa56ec8286b51f7e20228c74f9fb6deae177b05fa44c5be74",
+			"recordedAt": "2026-09-06"
 		}
 	]
 }

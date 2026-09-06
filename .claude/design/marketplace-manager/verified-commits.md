@@ -4,7 +4,7 @@ module: marketplace-manager
 category: security
 created: 2026-07-23
 updated: 2026-08-04
-last-synced: 2026-08-04
+last-synced: 2026-09-06
 completeness: 95
 related:
   - ./architecture.md
@@ -82,6 +82,11 @@ The PR body omits the DCO trailer; only the commit message carries it.
 `program.ts` reads `GitHubToken.botIdentity()` **only** on the land path (after
 the dry-run guard). Dry runs never read the token identity, so the dry-run code
 path needs no provisioned token — an important test/ergonomics property.
+
+The other half of the token's lifecycle — `post` revoking it **first and
+unconditionally**, and the reason the test that pins that ordering injects a
+*defect* rather than a typed failure — is in
+[architecture.md](./architecture.md).
 
 ## Reference implementation
 

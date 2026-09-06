@@ -3,9 +3,9 @@ status: current
 module: marketplace-manager
 category: validation
 created: 2026-07-23
-updated: 2026-08-04
-last-synced: 2026-08-04
-completeness: 92
+updated: 2026-09-06
+last-synced: 2026-09-06
+completeness: 94
 related:
   - ./architecture.md
   - ./input-output-contracts.md
@@ -93,6 +93,33 @@ otherwise:
 Only touched plugins get the per-field re-check, so pre-existing entries the run
 did not modify are not retroactively rejected — keeping edits precise and
 byte-stable.
+
+### How the semantic rules are tested, and why the fixtures are shaped that way
+
+All four touched-plugin rules (`source.source`, the GitHub URL regex, `path`,
+`sha`) have message-asserting tests, built on a helper that produces a manifest
+**structurally valid in every respect except the field under test**. That shape
+is the point, not a convenience:
+
+- The semantic rules run alongside the ajv pass and all errors are aggregated
+  into one failure, so a fixture that is *also* structurally broken fails for
+  that reason and proves nothing about the rule it names. This had already
+  happened: the "rejects a non-40-hex sha" case omitted the top-level `owner`
+  the bundled schema requires, so it failed on `owner` and stayed green with the
+  sha rule **deleted from the source** — a dead test. Every negative case now
+  asserts the *error text*, not merely that something failed.
+- The case pinning the `continue` for untouched plugins must use the **`url`**
+  specifically. It is the only one of the four whose bad value is still
+  structurally valid, so it isolates the semantic layer; a bad `sha` or an empty
+  `path` also trips the ajv pass, and that pass is **not** scoped to touched
+  plugins, so the test would fail for a reason unrelated to the scoping it
+  exists to prove.
+
+The URL rule is the one with a security consequence rather than a correctness
+one — without it a patch can re-point a plugin at any origin the runner can
+reach — so it is covered from three directions: a foreign host, a `github.com`
+lookalike (`github.com.evil.test`), and plain `http`. The positive cases pin the
+regex's two permitted tails, a `.git` suffix and a trailing slash.
 
 ## Relationship to the edit step
 

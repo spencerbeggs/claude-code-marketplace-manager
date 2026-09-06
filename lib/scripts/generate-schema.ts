@@ -30,7 +30,8 @@
  *
  * Run via `pnpm generate-schema`. The committed outputs are guarded against
  * drift by `__test__/generate-schema.test.ts`, which imports {@link targets}
- * and uses `SchemaPipeline.check` — the identical walk, without writing.
+ * and {@link AppLayer} and uses `SchemaPipeline.check` — the identical walk,
+ * against the identical wiring, without writing.
  */
 
 import { realpathSync } from "node:fs";
@@ -86,7 +87,15 @@ const generate = Effect.gen(function* () {
 	}
 });
 
-const AppLayer = Layer.mergeAll(SchemaFile.layer, SchemaValidator.layer).pipe(Layer.provide(NodeServices.layer));
+/**
+ * The services the pipeline walk needs: filesystem access and the ajv gate.
+ *
+ * @remarks
+ * Exported for the same reason as {@link targets} — so the drift test runs the
+ * generator's own wiring rather than a re-declared copy that could drift out of
+ * step with it.
+ */
+export const AppLayer = Layer.mergeAll(SchemaFile.layer, SchemaValidator.layer).pipe(Layer.provide(NodeServices.layer));
 
 const invokedDirectly =
 	process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));

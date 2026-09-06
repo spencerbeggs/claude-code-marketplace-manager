@@ -5,7 +5,7 @@ import { NodeFileSystem } from "@effect/platform-node";
 import { assert, describe, it } from "@effect/vitest";
 import { GitBranch, GitCommit, GitHubRepository, PullRequest, Repo, RepoRef } from "@effected/github";
 import { ActionInput, ActionOutputs, ActionState } from "@effected/github-actions";
-import { ConfigProvider, Effect, Exit, Layer } from "effect";
+import { Cause, ConfigProvider, Effect, Exit, Layer, Schema } from "effect";
 import { program } from "../src/program.js";
 
 // The bundled marketplace.json schema requires `owner` at the top level.
@@ -46,11 +46,29 @@ const withProgram = (inputs: Record<string, string>, dir: string) => {
 				Effect.sync(() => {
 					recorded.push({ name, value });
 				}),
+			// This double MUST encode through `schema`, exactly as the real
+			// `setJson` does (ActionOutputs.ts:196). A double that accepts the
+			// schema and ignores it makes every assertion below structurally
+			// incapable of catching a projection/schema drift: the real
+			// implementation would fail to encode, `program.ts` would swallow that
+			// into a `logWarning`, and the machine-readable `result` output would
+			// silently vanish in production with this suite green.
+			//
+			// `orDie` rather than a typed failure is deliberate, and is the one
+			// place this double is stricter than production. Production degrades
+			// gracefully — losing `result` should not fail a run that already did
+			// its work. In a test the same event is a contract bug, and it has to
+			// be loud, so it is raised as a defect that no `Effect.catch` in
+			// `program.ts` will absorb.
 			setJson: (name, value, schema) =>
-				Effect.map(Effect.orDie(Effect.succeed(value)), () => {
-					recorded.push({ name, value: JSON.stringify(value) });
-					void schema;
-				}),
+				Schema.encodeUnknownEffect(schema)(value).pipe(
+					Effect.orDie,
+					Effect.flatMap((encoded) =>
+						Effect.sync(() => {
+							recorded.push({ name, value: JSON.stringify(encoded) });
+						}),
+					),
+				),
 			summary: (content) =>
 				Effect.sync(() => {
 					summaries.push(content);
@@ -161,6 +179,51 @@ describe("program", () => {
 			assert.isString(result);
 			const parsed: unknown = JSON.parse(result as string);
 			assert.deepInclude(parsed, { status: "failed", hasFailures: true });
+		}),
+	);
+
+	// Failure reporting runs before the real cause is re-raised, so an output
+	// write that fails while reporting must not become the reason the run
+	// failed. Fault-inject `set` so every scalar write fails, then assert the
+	// domain error still arrives: without the `catchCause` in `emitFailure` the
+	// `yield*` short-circuits and this surfaces the output error instead.
+	it.effect("an output-write failure while reporting does not displace the real cause", () =>
+		Effect.gen(function* () {
+			const dir = setup();
+			const layer = Layer.mergeAll(
+				ActionOutputs.layerTest({
+					set: () => Effect.die(new Error("GITHUB_OUTPUT is gone")),
+					setJson: () => Effect.die(new Error("GITHUB_OUTPUT is gone")),
+					summary: () => Effect.void,
+				}),
+				ActionState.layerTest(),
+				GitCommit.layerTest(),
+				GitBranch.layerTest(),
+				PullRequest.layerTest(),
+				GitHubRepository.layerTest(),
+				Layer.succeed(Repo, RepoRef.make({ owner: "test-owner", repo: "test-repo" })),
+				NodeFileSystem.layer,
+			);
+
+			const cwd = process.cwd();
+			const exit = yield* Effect.exit(
+				Effect.gen(function* () {
+					process.chdir(dir);
+					return yield* program;
+				}).pipe(
+					Effect.ensuring(Effect.sync(() => process.chdir(cwd))),
+					Effect.provide(layer),
+					Effect.provide(
+						ConfigProvider.layer(ActionInput.provider({ name: "nope", sha: "1".repeat(40), "base-branch": "main" })),
+					),
+				),
+			);
+
+			assert.isTrue(Exit.isFailure(exit));
+			const rendered = Exit.isFailure(exit) ? Cause.pretty(exit.cause) : "";
+			// The domain failure is the missing plugin, not the output writer.
+			assert.include(rendered, "nope");
+			assert.notInclude(rendered, "GITHUB_OUTPUT is gone");
 		}),
 	);
 });
