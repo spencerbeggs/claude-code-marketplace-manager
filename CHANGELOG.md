@@ -1,5 +1,15 @@
 # claude-code-marketplace-manager
 
+## 1.0.6
+
+### Maintenance
+
+- Updates effected kit to latest versions.
+
+### Thanks
+
+Thanks to [@spencerbeggs](https://github.com/spencerbeggs) for their contributions!
+
 ## 1.0.5
 
 ### Dependencies
